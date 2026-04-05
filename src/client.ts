@@ -10,7 +10,7 @@ const DEFAULT_BASE_URL = "https://app.argalabs.com";
  * Main client for the Arga API.
  *
  * ```ts
- * import { Arga } from 'arga';
+ * import { Arga } from 'arga-sdk';
  *
  * const client = new Arga({ apiKey: 'arga_...' });
  * const run = await client.runs.createUrlRun({ url: 'https://staging.myapp.com' });

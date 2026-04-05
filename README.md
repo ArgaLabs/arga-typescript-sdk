@@ -5,13 +5,13 @@ TypeScript client for the [Arga](https://argalabs.com) API. Zero runtime depende
 ## Installation
 
 ```bash
-npm install arga
+npm install arga-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { Arga } from 'arga';
+import { Arga } from 'arga-sdk';
 
 const client = new Arga({ apiKey: 'arga_...' });
 
@@ -75,7 +75,7 @@ const client = new Arga({
 ## Error Handling
 
 ```typescript
-import { ArgaAPIError } from 'arga';
+import { ArgaAPIError } from 'arga-sdk';
 
 try {
   await client.runs.get('nonexistent');

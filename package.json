@@ -1,5 +1,5 @@
 {
-  "name": "arga",
+  "name": "arga-sdk",
   "version": "0.1.0",
   "type": "module",
   "description": "TypeScript SDK for the Arga API",
