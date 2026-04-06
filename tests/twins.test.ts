@@ -192,4 +192,23 @@ describe("TwinsResource", () => {
       expect(result.ttlMinutes).toBe(120);
     });
   });
+
+  // ---- teardown ------------------------------------------------------------
+
+  describe("teardown", () => {
+    it("sends POST to /validate/twins/provision/{runId}/teardown", async () => {
+      const apiResponse = { status: "teardown_initiated", run_id: "run_twin_001" };
+      const fetch = mockFetch(apiResponse);
+      const client = createClient(fetch);
+
+      const result = await client.twins.teardown("run_twin_001");
+
+      const [url, opts] = fetch.mock.calls[0];
+      expect(url).toBe(
+        "https://api.test.com/validate/twins/provision/run_twin_001/teardown",
+      );
+      expect(opts.method).toBe("POST");
+      expect(result.status).toBe("teardown_initiated");
+    });
+  });
 });

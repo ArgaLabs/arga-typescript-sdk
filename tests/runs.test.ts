@@ -68,6 +68,51 @@ describe("RunsResource", () => {
     });
   });
 
+  // ---- createUrlRun with diff-aware params ---------------------------------
+
+  describe("createUrlRun with diff-aware params", () => {
+    it("sends repo, branch, prUrl, provisionId as snake_case in the body", async () => {
+      const apiResponse = {
+        run_id: "run_diff_001",
+        status: "pending",
+      };
+      const fetch = mockFetch(apiResponse);
+      const client = createClient(fetch);
+
+      await client.runs.createUrlRun({
+        url: "https://staging.example.com",
+        repo: "owner/repo",
+        branch: "feat-x",
+        prUrl: "https://github.com/owner/repo/pull/42",
+        provisionId: "run_provision_001",
+      });
+
+      const [url, opts] = fetch.mock.calls[0];
+      expect(url).toBe("https://api.test.com/validate/url-run");
+      const body = JSON.parse(opts.body);
+      expect(body.repo).toBe("owner/repo");
+      expect(body.branch).toBe("feat-x");
+      expect(body.pr_url).toBe("https://github.com/owner/repo/pull/42");
+      expect(body.provision_id).toBe("run_provision_001");
+      // camelCase should not be in the request body
+      expect(body.prUrl).toBeUndefined();
+      expect(body.provisionId).toBeUndefined();
+    });
+
+    it("omits diff-aware fields when not provided", async () => {
+      const fetch = mockFetch({ run_id: "run_abc", status: "pending" });
+      const client = createClient(fetch);
+
+      await client.runs.createUrlRun({ url: "https://staging.example.com" });
+
+      const body = JSON.parse(fetch.mock.calls[0][1].body);
+      expect(body.repo).toBeUndefined();
+      expect(body.branch).toBeUndefined();
+      expect(body.pr_url).toBeUndefined();
+      expect(body.provision_id).toBeUndefined();
+    });
+  });
+
   // ---- createPrRun --------------------------------------------------------
 
   describe("createPrRun", () => {
