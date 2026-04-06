@@ -22,6 +22,10 @@ export interface CreateUrlRunParams {
   credentials?: { email?: string; password?: string };
   runnerMode?: string;
   sessionId?: string;
+  repo?: string;
+  branch?: string;
+  prUrl?: string;
+  provisionId?: string;
 }
 
 export interface CreatePrRunParams {

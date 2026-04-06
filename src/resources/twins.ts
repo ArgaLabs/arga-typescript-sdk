@@ -41,4 +41,9 @@ export class TwinsResource {
       params,
     );
   }
+
+  /** Tear down a twin provision immediately. */
+  async teardown(runId: string): Promise<{ status: string; run_id: string }> {
+    return this.http.post(`/validate/twins/provision/${encodeURIComponent(runId)}/teardown`);
+  }
 }
