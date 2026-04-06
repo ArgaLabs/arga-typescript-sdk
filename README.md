@@ -41,6 +41,44 @@ const client = new Arga({
 });
 ```
 
+## Examples
+
+Runnable examples live in [`examples/`](examples/README.md). They are the best
+way to see realistic customer workflows end to end.
+
+If you want to run the in-repo examples from a local checkout:
+
+```bash
+npm install
+export ARGA_API_KEY=arga_your_api_key
+```
+
+If you need a non-default environment, you can also set:
+
+```bash
+export ARGA_BASE_URL=https://app.argalabs.com
+```
+
+Start with the staging validation example:
+
+```bash
+npx tsx examples/validate_staging_release.ts
+```
+
+Each example is a small workflow script with an editable config block near the
+top of the file. Open the file, adjust the business-specific values, then run
+it with `tsx`.
+
+Choose an example based on the customer job you want to model:
+
+- [`examples/validate_staging_release.ts`](examples/validate_staging_release.ts): validate staging before a release
+- [`examples/create_checkout_scenario.ts`](examples/create_checkout_scenario.ts): create a reusable checkout scenario
+- [`examples/provision_checkout_twins.ts`](examples/provision_checkout_twins.ts): provision disposable integrations like Stripe
+- [`examples/explore_staging_with_agent.ts`](examples/explore_staging_with_agent.ts): let Arga explore staging autonomously
+
+See [`examples/README.md`](examples/README.md) for exact commands, required
+edits, and expected output for each example.
+
 ## Available Methods
 
 ### Runs
@@ -75,7 +113,7 @@ const client = new Arga({
 ## Error Handling
 
 ```typescript
-import { ArgaAPIError } from 'arga-sdk';
+import { ArgaAPIError, ArgaError } from 'arga-sdk';
 
 try {
   await client.runs.get('nonexistent');
@@ -83,6 +121,9 @@ try {
   if (err instanceof ArgaAPIError) {
     console.error(err.statusCode); // e.g. 404
     console.error(err.message);    // error detail from API
+    console.error(err.body);       // parsed response body, when available
+  } else if (err instanceof ArgaError) {
+    console.error(err.message);    // e.g. wait() timeout
   }
 }
 ```
