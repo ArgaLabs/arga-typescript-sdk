@@ -112,6 +112,14 @@ export interface ProvisionTwinsParams {
   twins: string[];
   ttlMinutes?: number;
   scenarioId?: string;
+  /**
+   * Whether the provisioned twins should be reachable via their public
+   * `pub-r<id>--<surface>` hosts without proxy auth, so the returned
+   * `baseUrl` can be dropped directly into a twin-native SDK (Slack,
+   * Stripe, Discord, etc.). Defaults to `true` server-side — pass `false`
+   * explicitly if you want to gate the environment behind the proxy token.
+   */
+  public?: boolean;
 }
 
 export interface ProvisionTwinsResponse {
@@ -133,7 +141,19 @@ export interface TwinProvisionStatus {
   twins: Record<string, TwinInstance>;
   dashboardUrl?: string;
   expiresAt?: string;
+  /**
+   * Proxy token for hitting each twin's `adminUrl` (and, for private runs,
+   * its `baseUrl`). Always returned for ready runs; for public runs the
+   * `baseUrl` is directly callable without it, but admin-side ops still
+   * need it.
+   */
   proxyToken?: string;
+  /**
+   * Whether the run's `baseUrl`s are the drop-in `pub-r<id>...` hosts. When
+   * true, the SDK caller can drop `twin.baseUrl` straight into a native
+   * SDK without wiring any proxy token.
+   */
+  isPublic?: boolean;
   error?: string;
 }
 
