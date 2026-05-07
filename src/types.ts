@@ -195,3 +195,25 @@ export interface Scenario {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface EnsureScenarioTwinEnvironmentParams {
+  twins?: string[];
+  public?: boolean;
+}
+
+export interface ScenarioTwinEnvironment {
+  id: string;
+  scenarioId: string;
+  status: string;
+  requestedTwins: string[];
+  twins: Record<string, TwinInstance>;
+  runId?: string;
+  dashboardUrl?: string;
+  proxyToken?: string;
+  public: boolean;
+  error?: string;
+  seedResults?: Record<string, unknown>;
+  lastSeededAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

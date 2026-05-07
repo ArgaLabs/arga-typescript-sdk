@@ -85,6 +85,15 @@ export class HttpClient {
     return this.handleResponse<T>(res);
   }
 
+  async delete<T>(path: string): Promise<T> {
+    const url = this.buildUrl(path);
+    const res = await this._fetch(url, {
+      method: "DELETE",
+      headers: this.headers(),
+    });
+    return this.handleResponse<T>(res);
+  }
+
   /**
    * Perform a GET request and return the raw Response, for SSE streaming.
    */

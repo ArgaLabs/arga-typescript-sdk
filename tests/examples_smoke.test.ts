@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import * as createCheckoutScenario from "../examples/create_checkout_scenario.js";
+import * as ensureScenarioTwinUrls from "../examples/ensure_scenario_twin_urls.js";
 import * as exploreStagingWithAgent from "../examples/explore_staging_with_agent.js";
 import * as provisionCheckoutTwins from "../examples/provision_checkout_twins.js";
 import * as validateStagingRelease from "../examples/validate_staging_release.js";
@@ -27,6 +28,7 @@ describe("examples smoke test", () => {
   it("imports example modules without executing them", () => {
     expect(typeof validateStagingRelease.main).toBe("function");
     expect(typeof createCheckoutScenario.main).toBe("function");
+    expect(typeof ensureScenarioTwinUrls.main).toBe("function");
     expect(typeof provisionCheckoutTwins.main).toBe("function");
     expect(typeof exploreStagingWithAgent.main).toBe("function");
   });
@@ -35,6 +37,7 @@ describe("examples smoke test", () => {
     for (const exampleFile of [
       "examples/validate_staging_release.ts",
       "examples/create_checkout_scenario.ts",
+      "examples/ensure_scenario_twin_urls.ts",
       "examples/provision_checkout_twins.ts",
       "examples/explore_staging_with_agent.ts",
     ]) {

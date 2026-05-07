@@ -73,6 +73,7 @@ Choose an example based on the customer job you want to model:
 
 - [`examples/validate_staging_release.ts`](examples/validate_staging_release.ts): validate staging before a release
 - [`examples/create_checkout_scenario.ts`](examples/create_checkout_scenario.ts): create a reusable checkout scenario
+- [`examples/ensure_scenario_twin_urls.ts`](examples/ensure_scenario_twin_urls.ts): ensure stable scenario twin URLs
 - [`examples/provision_checkout_twins.ts`](examples/provision_checkout_twins.ts): provision disposable integrations like Stripe
 - [`examples/explore_staging_with_agent.ts`](examples/explore_staging_with_agent.ts): let Arga explore staging autonomously
 
@@ -109,6 +110,11 @@ edits, and expected output for each example.
 | `client.scenarios.create(params)` | Create a new scenario |
 | `client.scenarios.list(params?)` | List scenarios (filter by twin or tag) |
 | `client.scenarios.get(scenarioId)` | Get a scenario by ID |
+| `client.scenarios.ensureTwinEnvironment(scenarioId, params?)` | Create or return permanent twin URLs for a scenario |
+| `client.scenarios.getTwinEnvironment(scenarioId)` | Get permanent twin environment status and URLs |
+| `client.scenarios.reseedTwinEnvironment(scenarioId)` | Reseed a permanent twin environment from the scenario |
+| `client.scenarios.deleteTwinEnvironment(scenarioId)` | Tear down a permanent twin environment |
+| `client.scenarios.listTwinEnvironments()` | List permanent scenario twin environments |
 
 ## Error Handling
 

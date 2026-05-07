@@ -23,4 +23,6 @@ export type {
   CreateScenarioParams,
   ListScenariosParams,
   Scenario,
+  EnsureScenarioTwinEnvironmentParams,
+  ScenarioTwinEnvironment,
 } from "./types.js";

@@ -22,6 +22,31 @@ function createClient(fetch: ReturnType<typeof vi.fn>) {
   });
 }
 
+const scenarioTwinEnvironmentResponse = {
+  id: "env_001",
+  scenario_id: "scen_001",
+  status: "ready",
+  requested_twins: ["stripe"],
+  twins: {
+    stripe: {
+      name: "stripe",
+      label: "Stripe",
+      base_url: "https://scn-0123456789abcdef0123456789abcdef--stripe.sandbox.argalabs.com",
+      admin_url: "https://r0123456789abcdef0123456789abcdef--stripe.sandbox.argalabs.com",
+      env_vars: { STRIPE_API_KEY: "sk_test_twin" },
+      show_in_ui: true,
+    },
+  },
+  run_id: "run_001",
+  dashboard_url: "https://app.argalabs.com/runs/run_001",
+  proxy_token: "proxy_tok",
+  public: true,
+  seed_results: { stripe: { env_vars: { STRIPE_API_KEY: "sk_test_twin" } } },
+  last_seeded_at: "2026-01-15T10:05:00Z",
+  created_at: "2026-01-15T10:00:00Z",
+  updated_at: "2026-01-15T10:05:00Z",
+};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -162,6 +187,76 @@ describe("ScenariosResource", () => {
       expect(result.seedConfig).toEqual({ userCount: 5 });
       expect(result.createdAt).toBe("2026-01-15T10:00:00Z");
       expect(result.updatedAt).toBe("2026-01-16T12:00:00Z");
+    });
+  });
+
+  describe("twin environments", () => {
+    it("ensures a permanent twin environment for a scenario", async () => {
+      const fetch = mockFetch(scenarioTwinEnvironmentResponse);
+      const client = createClient(fetch);
+
+      const result = await client.scenarios.ensureTwinEnvironment("scen_001", {
+        twins: ["stripe"],
+        public: true,
+      });
+
+      const [url, opts] = fetch.mock.calls[0];
+      expect(url).toBe("https://api.test.com/scenarios/scen_001/twin-environment");
+      expect(opts.method).toBe("POST");
+      const body = JSON.parse(opts.body);
+      expect(body).toEqual({ public: true, twins: ["stripe"] });
+      expect(result.scenarioId).toBe("scen_001");
+      expect(result.twins.stripe.baseUrl).toMatch(/^https:\/\/scn-/);
+      expect(result.proxyToken).toBe("proxy_tok");
+    });
+
+    it("gets a scenario twin environment", async () => {
+      const fetch = mockFetch(scenarioTwinEnvironmentResponse);
+      const client = createClient(fetch);
+
+      const result = await client.scenarios.getTwinEnvironment("scen_001");
+
+      const [url, opts] = fetch.mock.calls[0];
+      expect(url).toBe("https://api.test.com/scenarios/scen_001/twin-environment");
+      expect(opts.method).toBe("GET");
+      expect(result.runId).toBe("run_001");
+    });
+
+    it("reseeds a scenario twin environment", async () => {
+      const fetch = mockFetch(scenarioTwinEnvironmentResponse);
+      const client = createClient(fetch);
+
+      const result = await client.scenarios.reseedTwinEnvironment("scen_001");
+
+      const [url, opts] = fetch.mock.calls[0];
+      expect(url).toBe("https://api.test.com/scenarios/scen_001/twin-environment/reseed");
+      expect(opts.method).toBe("POST");
+      expect(result.lastSeededAt).toBe("2026-01-15T10:05:00Z");
+    });
+
+    it("deletes a scenario twin environment", async () => {
+      const fetch = mockFetch({ ...scenarioTwinEnvironmentResponse, status: "deleted" });
+      const client = createClient(fetch);
+
+      const result = await client.scenarios.deleteTwinEnvironment("scen_001");
+
+      const [url, opts] = fetch.mock.calls[0];
+      expect(url).toBe("https://api.test.com/scenarios/scen_001/twin-environment");
+      expect(opts.method).toBe("DELETE");
+      expect(result.status).toBe("deleted");
+    });
+
+    it("lists scenario twin environments", async () => {
+      const fetch = mockFetch([scenarioTwinEnvironmentResponse]);
+      const client = createClient(fetch);
+
+      const result = await client.scenarios.listTwinEnvironments();
+
+      const [url, opts] = fetch.mock.calls[0];
+      expect(url).toBe("https://api.test.com/scenario-twin-environments");
+      expect(opts.method).toBe("GET");
+      expect(result).toHaveLength(1);
+      expect(result[0].scenarioId).toBe("scen_001");
     });
   });
 });
