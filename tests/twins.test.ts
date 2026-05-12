@@ -39,10 +39,16 @@ describe("TwinsResource", () => {
           show_in_ui: true,
         },
         {
-          name: "github",
-          label: "GitHub",
-          kind: "box",
+          name: "slack",
+          label: "Slack",
+          kind: "frontend",
           show_in_ui: false,
+          mcp: {
+            server_name: "slack-twin-mcp",
+            transport: "streamable_http",
+            path: "/mcp",
+            auth: "Slack MCP OAuth user bearer token",
+          },
         },
       ];
       const fetch = mockFetch(apiResponse);
@@ -60,8 +66,9 @@ describe("TwinsResource", () => {
       expect(result[0].label).toBe("Stripe");
       expect(result[0].kind).toBe("unified");
       expect(result[0].showInUi).toBe(true);
-      expect(result[1].name).toBe("github");
+      expect(result[1].name).toBe("slack");
       expect(result[1].showInUi).toBe(false);
+      expect(result[1].mcp?.path).toBe("/mcp");
     });
   });
 
@@ -122,6 +129,22 @@ describe("TwinsResource", () => {
             env_vars: { GITHUB_TOKEN: "ght_twin_789" },
             show_in_ui: false,
           },
+          gitlab: {
+            name: "gitlab",
+            label: "GitLab",
+            base_url: "https://gitlab-twin.arga.run",
+            admin_url: "https://gitlab-twin.arga.run/admin",
+            env_vars: { GITLAB_TOKEN: "glpat-twin" },
+            show_in_ui: true,
+            mcp_url: "https://gitlab-twin.arga.run/api/v4/mcp",
+            mcp: {
+              server_name: "gitlab-twin-mcp",
+              transport: "streamable_http",
+              path: "/api/v4/mcp",
+              url: "https://gitlab-twin.arga.run/api/v4/mcp",
+              auth: "GitLab bearer token",
+            },
+          },
         },
         dashboard_url: "https://dashboard.arga.run/run_twin_001",
         expires_at: "2026-01-15T11:00:00Z",
@@ -160,6 +183,39 @@ describe("TwinsResource", () => {
       const github = result.twins.github;
       expect(github.baseUrl).toBe("https://github-twin.arga.run");
       expect(github.envVars).toEqual({ GITHUB_TOKEN: "ght_twin_789" });
+      const gitlab = result.twins.gitlab;
+      expect(gitlab.mcpUrl).toBe("https://gitlab-twin.arga.run/api/v4/mcp");
+      expect(gitlab.mcp?.serverName).toBe("gitlab-twin-mcp");
+      expect(gitlab.mcp?.path).toBe("/api/v4/mcp");
+    });
+  });
+
+  // ---- reset --------------------------------------------------------------
+
+  describe("reset", () => {
+    it("sends POST to /validate/twins/provision/{runId}/reset", async () => {
+      const apiResponse = {
+        run_id: "run_twin_001",
+        status: "reset_complete",
+        baseline_kind: "prompt",
+        factory_reset: { slack: { status: "ok" } },
+        seed_results: { slack: { status: "seeded" } },
+      };
+      const fetch = mockFetch(apiResponse);
+      const client = createClient(fetch);
+
+      const result = await client.twins.reset("run_twin_001");
+
+      const [url, opts] = fetch.mock.calls[0];
+      expect(url).toBe(
+        "https://api.test.com/validate/twins/provision/run_twin_001/reset",
+      );
+      expect(opts.method).toBe("POST");
+
+      expect(result.runId).toBe("run_twin_001");
+      expect(result.status).toBe("reset_complete");
+      expect(result.baselineKind).toBe("prompt");
+      expect(result.factoryReset.slack).toEqual({ status: "ok" });
     });
   });
 

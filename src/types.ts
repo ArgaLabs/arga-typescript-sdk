@@ -106,6 +106,16 @@ export interface Twin {
   label: string;
   kind: string;
   showInUi: boolean;
+  mcp?: TwinMcpInfo | null;
+}
+
+export interface TwinMcpInfo {
+  serverName: string;
+  transport: string;
+  path: string;
+  url?: string | null;
+  auth: string;
+  notes?: string | null;
 }
 
 export interface ProvisionTwinsParams {
@@ -133,6 +143,8 @@ export interface TwinInstance {
   adminUrl: string;
   envVars: Record<string, string>;
   showInUi: boolean;
+  mcpUrl?: string | null;
+  mcp?: TwinMcpInfo | null;
 }
 
 export interface TwinProvisionStatus {
@@ -164,6 +176,15 @@ export interface ExtendTwinsParams {
 export interface ExtendTwinsResponse {
   status: string;
   ttlMinutes: number;
+}
+
+/** Response from POST /validate/twins/provision/{run_id}/reset */
+export interface ResetTwinsResponse {
+  runId: string;
+  status: string;
+  baselineKind?: string;
+  factoryReset: Record<string, unknown>;
+  seedResults: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------

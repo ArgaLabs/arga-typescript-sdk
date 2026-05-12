@@ -4,6 +4,7 @@ import type {
   ExtendTwinsResponse,
   ProvisionTwinsParams,
   ProvisionTwinsResponse,
+  ResetTwinsResponse,
   Twin,
   TwinProvisionStatus,
 } from "../types.js";
@@ -28,6 +29,13 @@ export class TwinsResource {
   async getStatus(runId: string): Promise<TwinProvisionStatus> {
     return this.http.get<TwinProvisionStatus>(
       `/validate/twins/provision/${encodeURIComponent(runId)}/status`,
+    );
+  }
+
+  /** Reset twins to the baseline seed state captured at provision time. */
+  async reset(runId: string): Promise<ResetTwinsResponse> {
+    return this.http.post<ResetTwinsResponse>(
+      `/validate/twins/provision/${encodeURIComponent(runId)}/reset`,
     );
   }
 
