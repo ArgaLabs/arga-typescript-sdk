@@ -40,13 +40,14 @@ export interface CreatePrRunParams {
 }
 
 export interface CreateAgentRunParams {
-  url?: string;
-  repo?: string;
+  repo: string;
   branch?: string;
-  credentials?: Record<string, unknown>[];
-  focus?: string;
-  actionBudget?: number;
-  runnerMode?: string;
+  prUrl?: string;
+  contextNotes?: string;
+  scenarioPrompt?: string;
+  twins?: string[];
+  frontendUrl?: string;
+  sessionId?: string;
 }
 
 export interface Run {
