@@ -88,7 +88,7 @@ edits, and expected output for each example.
 |--------|-------------|
 | `client.runs.createUrlRun(params)` | Create a URL validation run |
 | `client.runs.createPrRun(params)` | Create a PR validation run |
-| `client.runs.createAgentRun(params)` | Create an autonomous agent run |
+| `client.runs.createAgentRun(params)` | Create an autonomous agent run for PR or branch exploration |
 | `client.runs.get(runId)` | Get full run details |
 | `client.runs.streamResults(runId)` | Stream run results as SSE events |
 | `client.runs.cancel(runId)` | Cancel a running run |

@@ -112,7 +112,7 @@ describe("RunsResource", () => {
   // ---- createAgentRun -----------------------------------------------------
 
   describe("createAgentRun", () => {
-    it("sends a POST to /validate/agent-run with correct body", async () => {
+    it("sends a POST to /validate/pr-run with agent run_type", async () => {
       const apiResponse = {
         run_id: "run_agent_789",
         status: "pending",
@@ -121,22 +121,31 @@ describe("RunsResource", () => {
       const client = createClient(fetch);
 
       const result = await client.runs.createAgentRun({
-        url: "https://app.example.com",
-        focus: "authentication",
-        actionBudget: 50,
-        runnerMode: "thorough",
+        repo: "owner/repo",
+        branch: "main",
+        prUrl: "https://github.com/owner/repo/pull/42",
+        contextNotes: "Explore authentication",
+        scenarioPrompt: "Seed login fixtures",
+        twins: ["github"],
+        frontendUrl: "https://preview.example.com",
+        sessionId: "sess_agent",
       });
 
       const [url, opts] = fetch.mock.calls[0];
-      expect(url).toBe("https://api.test.com/validate/agent-run");
+      expect(url).toBe("https://api.test.com/validate/pr-run");
 
       const body = JSON.parse(opts.body);
-      expect(body.url).toBe("https://app.example.com");
-      expect(body.focus).toBe("authentication");
-      expect(body.action_budget).toBe(50);
-      expect(body.runner_mode).toBe("thorough");
-      expect(body.actionBudget).toBeUndefined();
-      expect(body.runnerMode).toBeUndefined();
+      expect(body.repo).toBe("owner/repo");
+      expect(body.branch).toBe("main");
+      expect(body.pr_url).toBe("https://github.com/owner/repo/pull/42");
+      expect(body.context_notes).toBe("Explore authentication");
+      expect(body.scenario_prompt).toBe("Seed login fixtures");
+      expect(body.twins).toEqual(["github"]);
+      expect(body.frontend_url).toBe("https://preview.example.com");
+      expect(body.session_id).toBe("sess_agent");
+      expect(body.run_type).toBe("agent_run");
+      expect(body.runType).toBeUndefined();
+      expect(body.prUrl).toBeUndefined();
 
       expect(result.runId).toBe("run_agent_789");
       expect(result.status).toBe("pending");

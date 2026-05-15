@@ -36,7 +36,10 @@ export class RunsResource {
 
   /** Create an agent (sandbox) run. */
   async createAgentRun(params: CreateAgentRunParams): Promise<Run> {
-    return this.http.post<Run>("/validate/agent-run", params);
+    return this.http.post<Run>("/validate/pr-run", {
+      ...params,
+      runType: "agent_run",
+    });
   }
 
   /** Get full details of a run by ID. */
