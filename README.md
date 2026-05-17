@@ -18,7 +18,7 @@ const client = new Arga({ apiKey: 'arga_...' });
 // Create a URL run
 const run = await client.runs.createUrlRun({
   url: 'https://staging.myapp.com',
-  twins: ['stripe', 'slack'],
+  twins: ['stripe', 'slack', 'salesforce'],
 });
 console.log(run.runId, run.status);
 
@@ -74,7 +74,7 @@ Choose an example based on the customer job you want to model:
 - [`examples/validate_staging_release.ts`](examples/validate_staging_release.ts): validate staging before a release
 - [`examples/create_checkout_scenario.ts`](examples/create_checkout_scenario.ts): create a reusable checkout scenario
 - [`examples/ensure_scenario_twin_urls.ts`](examples/ensure_scenario_twin_urls.ts): ensure stable scenario twin URLs
-- [`examples/provision_checkout_twins.ts`](examples/provision_checkout_twins.ts): provision disposable integrations like Stripe
+- [`examples/provision_checkout_twins.ts`](examples/provision_checkout_twins.ts): provision disposable integrations like Stripe or Salesforce
 - [`examples/explore_staging_with_agent.ts`](examples/explore_staging_with_agent.ts): let Arga explore staging autonomously
 
 See [`examples/README.md`](examples/README.md) for exact commands, required

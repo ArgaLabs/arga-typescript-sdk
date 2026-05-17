@@ -13,6 +13,8 @@ export type {
   StepSummary,
   CancelRunResponse,
   WaitOptions,
+  KnownTwinName,
+  TwinName,
   Twin,
   TwinMcpInfo,
   ProvisionTwinsParams,
