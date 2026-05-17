@@ -18,7 +18,7 @@ export interface ArgaClientOptions {
 export interface CreateUrlRunParams {
   url: string;
   prompt?: string;
-  twins?: string[];
+  twins?: TwinName[];
   credentials?: { email?: string; password?: string };
   runnerMode?: string;
   sessionId?: string;
@@ -34,7 +34,7 @@ export interface CreatePrRunParams {
   prUrl?: string;
   contextNotes?: string;
   scenarioPrompt?: string;
-  twins?: string[];
+  twins?: TwinName[];
   frontendUrl?: string;
   sessionId?: string;
 }
@@ -45,7 +45,7 @@ export interface CreateAgentRunParams {
   prUrl?: string;
   contextNotes?: string;
   scenarioPrompt?: string;
-  twins?: string[];
+  twins?: TwinName[];
   frontendUrl?: string;
   sessionId?: string;
 }
@@ -69,7 +69,7 @@ export interface RunDetail {
   mode?: string;
   environmentUrl?: string;
   surfaceUrls?: string[];
-  twins?: string[];
+  twins?: TwinName[];
   resultsJson?: unknown;
   eventLogJson?: unknown;
   storyJson?: unknown;
@@ -102,8 +102,30 @@ export interface WaitOptions {
 // Twins
 // ---------------------------------------------------------------------------
 
+export type KnownTwinName =
+  | "box"
+  | "discord"
+  | "dropbox"
+  | "github"
+  | "gitlab"
+  | "gmail"
+  | "google_calendar"
+  | "google_drive"
+  | "hubspot"
+  | "jira"
+  | "linear"
+  | "notion"
+  | "postgres"
+  | "salesforce"
+  | "slack"
+  | "stripe"
+  | "unified"
+  | "unstructured";
+
+export type TwinName = KnownTwinName | (string & {});
+
 export interface Twin {
-  name: string;
+  name: TwinName;
   label: string;
   kind: string;
   showInUi: boolean;
@@ -120,15 +142,16 @@ export interface TwinMcpInfo {
 }
 
 export interface ProvisionTwinsParams {
-  twins: string[];
+  twins: TwinName[];
   ttlMinutes?: number;
   scenarioId?: string;
   /**
    * Whether the provisioned twins should be reachable via their public
    * `pub-r<id>--<surface>` hosts without proxy auth, so the returned
    * `baseUrl` can be dropped directly into a twin-native SDK (Slack,
-   * Stripe, Discord, etc.). Defaults to `true` server-side — pass `false`
-   * explicitly if you want to gate the environment behind the proxy token.
+   * Stripe, Salesforce, Discord, etc.). Defaults to `true` server-side —
+   * pass `false` explicitly if you want to gate the environment behind the
+   * proxy token.
    */
   public?: boolean;
 }
@@ -138,7 +161,7 @@ export interface ProvisionTwinsResponse {
 }
 
 export interface TwinInstance {
-  name: string;
+  name: TwinName;
   label: string;
   baseUrl: string;
   adminUrl: string;
@@ -196,7 +219,7 @@ export interface CreateScenarioParams {
   name: string;
   prompt?: string;
   seedConfig?: Record<string, unknown>;
-  twins?: string[];
+  twins?: TwinName[];
   description?: string;
   tags?: string[];
 }
@@ -211,7 +234,7 @@ export interface Scenario {
   name: string;
   description?: string;
   prompt?: string;
-  twins?: string[];
+  twins?: TwinName[];
   seedConfig?: Record<string, unknown>;
   tags?: string[];
   createdAt?: string;
@@ -219,7 +242,7 @@ export interface Scenario {
 }
 
 export interface EnsureScenarioTwinEnvironmentParams {
-  twins?: string[];
+  twins?: TwinName[];
   public?: boolean;
 }
 
@@ -227,7 +250,7 @@ export interface ScenarioTwinEnvironment {
   id: string;
   scenarioId: string;
   status: string;
-  requestedTwins: string[];
+  requestedTwins: TwinName[];
   twins: Record<string, TwinInstance>;
   runId?: string;
   dashboardUrl?: string;

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Arga } from "../src/client.js";
+import type { KnownTwinName } from "../src/types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -30,6 +31,11 @@ describe("TwinsResource", () => {
   // ---- list ---------------------------------------------------------------
 
   describe("list", () => {
+    it("exposes salesforce as a known twin name", () => {
+      const twin: KnownTwinName = "salesforce";
+      expect(twin).toBe("salesforce");
+    });
+
     it("sends GET to /validate/twins and parses Twin[] with camelCase", async () => {
       const apiResponse = [
         {
@@ -70,6 +76,25 @@ describe("TwinsResource", () => {
       expect(result[1].showInUi).toBe(false);
       expect(result[1].mcp?.path).toBe("/mcp");
     });
+
+    it("parses Salesforce catalog entries", async () => {
+      const fetch = mockFetch([
+        {
+          name: "salesforce",
+          label: "Salesforce",
+          kind: "backend",
+          show_in_ui: true,
+        },
+      ]);
+      const client = createClient(fetch);
+
+      const result = await client.twins.list();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe("salesforce");
+      expect(result[0].label).toBe("Salesforce");
+      expect(result[0].kind).toBe("backend");
+    });
   });
 
   // ---- provision ----------------------------------------------------------
@@ -99,6 +124,22 @@ describe("TwinsResource", () => {
       expect(body.scenarioId).toBeUndefined();
 
       expect(result.runId).toBe("run_twin_001");
+    });
+
+    it("provisions Salesforce with typed twin names", async () => {
+      const apiResponse = { run_id: "run_sf_001" };
+      const fetch = mockFetch(apiResponse);
+      const client = createClient(fetch);
+
+      await client.twins.provision({
+        twins: ["salesforce"],
+        ttlMinutes: 45,
+      });
+
+      const [, opts] = fetch.mock.calls[0];
+      const body = JSON.parse(opts.body);
+      expect(body.twins).toEqual(["salesforce"]);
+      expect(body.ttl_minutes).toBe(45);
     });
   });
 
@@ -145,6 +186,20 @@ describe("TwinsResource", () => {
               auth: "GitLab bearer token",
             },
           },
+          salesforce: {
+            name: "salesforce",
+            label: "Salesforce",
+            base_url: "https://pub-r0123456789abcdef0123456789abcdef--salesforce.sandbox.argalabs.com",
+            admin_url: "https://r0123456789abcdef0123456789abcdef--salesforce.sandbox.argalabs.com",
+            env_vars: {
+              SALESFORCE_ACCESS_TOKEN: "00D000000000001!salesforce-twin-token",
+              SALESFORCE_INSTANCE_URL:
+                "https://pub-r0123456789abcdef0123456789abcdef--salesforce.sandbox.argalabs.com",
+              SALESFORCE_API_BASE_URL:
+                "https://pub-r0123456789abcdef0123456789abcdef--salesforce.sandbox.argalabs.com",
+            },
+            show_in_ui: true,
+          },
         },
         dashboard_url: "https://dashboard.arga.run/run_twin_001",
         expires_at: "2026-01-15T11:00:00Z",
@@ -187,6 +242,13 @@ describe("TwinsResource", () => {
       expect(gitlab.mcpUrl).toBe("https://gitlab-twin.arga.run/api/v4/mcp");
       expect(gitlab.mcp?.serverName).toBe("gitlab-twin-mcp");
       expect(gitlab.mcp?.path).toBe("/api/v4/mcp");
+      const salesforce = result.twins.salesforce;
+      expect(salesforce.baseUrl).toMatch(/^https:\/\/pub-r/);
+      expect(salesforce.envVars).toEqual({
+        SALESFORCE_ACCESS_TOKEN: "00D000000000001!salesforce-twin-token",
+        SALESFORCE_INSTANCE_URL: salesforce.baseUrl,
+        SALESFORCE_API_BASE_URL: salesforce.baseUrl,
+      });
     });
   });
 
