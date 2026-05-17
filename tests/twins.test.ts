@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { Arga } from "../src/client.js";
+import type { KnownTwinName } from "../src/types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -30,6 +31,11 @@ describe("TwinsResource", () => {
   // ---- list ---------------------------------------------------------------
 
   describe("list", () => {
+    it("exposes linkedin as a known twin name", () => {
+      const twin: KnownTwinName = "linkedin";
+      expect(twin).toBe("linkedin");
+    });
+
     it("sends GET to /validate/twins and parses Twin[] with camelCase", async () => {
       const apiResponse = [
         {

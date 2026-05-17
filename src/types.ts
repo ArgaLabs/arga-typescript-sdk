@@ -101,15 +101,38 @@ export interface WaitOptions {
 // Twins
 // ---------------------------------------------------------------------------
 
+export type KnownTwinName =
+  | "box"
+  | "discord"
+  | "dropbox"
+  | "github"
+  | "gitlab"
+  | "gmail"
+  | "google_calendar"
+  | "google_drive"
+  | "hubspot"
+  | "jira"
+  | "linear"
+  | "linkedin"
+  | "notion"
+  | "postgres"
+  | "salesforce"
+  | "slack"
+  | "stripe"
+  | "unified"
+  | "unstructured";
+
+export type TwinName = KnownTwinName | (string & {});
+
 export interface Twin {
-  name: string;
+  name: TwinName;
   label: string;
   kind: string;
   showInUi: boolean;
 }
 
 export interface ProvisionTwinsParams {
-  twins: string[];
+  twins: TwinName[];
   ttlMinutes?: number;
   scenarioId?: string;
 }
@@ -119,7 +142,7 @@ export interface ProvisionTwinsResponse {
 }
 
 export interface TwinInstance {
-  name: string;
+  name: TwinName;
   label: string;
   baseUrl: string;
   adminUrl: string;
@@ -154,7 +177,7 @@ export interface CreateScenarioParams {
   name: string;
   prompt?: string;
   seedConfig?: Record<string, unknown>;
-  twins?: string[];
+  twins?: TwinName[];
   description?: string;
   tags?: string[];
 }
