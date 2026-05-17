@@ -114,6 +114,7 @@ export type KnownTwinName =
   | "hubspot"
   | "jira"
   | "linear"
+  | "linkedin"
   | "notion"
   | "postgres"
   | "salesforce"
