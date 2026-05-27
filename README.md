@@ -18,7 +18,7 @@ const client = new Arga({ apiKey: 'arga_...' });
 // Create a URL run
 const run = await client.runs.createUrlRun({
   url: 'https://staging.myapp.com',
-  twins: ['stripe', 'slack', 'salesforce'],
+  twins: ['stripe', 'slack', 'salesforce', 'waterfall'],
 });
 console.log(run.runId, run.status);
 

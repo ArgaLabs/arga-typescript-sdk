@@ -41,6 +41,11 @@ describe("TwinsResource", () => {
       expect(twin).toBe("linkedin");
     });
 
+    it("exposes waterfall as a known twin name", () => {
+      const twin: KnownTwinName = "waterfall";
+      expect(twin).toBe("waterfall");
+    });
+
     it("sends GET to /validate/twins and parses Twin[] with camelCase", async () => {
       const apiResponse = [
         {

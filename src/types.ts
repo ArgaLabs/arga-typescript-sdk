@@ -121,7 +121,8 @@ export type KnownTwinName =
   | "slack"
   | "stripe"
   | "unified"
-  | "unstructured";
+  | "unstructured"
+  | "waterfall";
 
 export type TwinName = KnownTwinName | (string & {});
 
