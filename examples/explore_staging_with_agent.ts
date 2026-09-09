@@ -11,7 +11,6 @@ const agentRun = {
   url: process.env.STAGING_URL ?? "https://staging.example.com",
   focus:
     "Explore onboarding, sign in, and the first purchase flow. Look for dead ends, broken states, and obvious regressions.",
-  actionBudget: 80,
   pollIntervalMs: 2_500,
   timeoutMs: 10 * 60 * 1000,
 } as const;
@@ -22,10 +21,9 @@ export async function main(): Promise<void> {
     ...(process.env.ARGA_BASE_URL ? { baseUrl: process.env.ARGA_BASE_URL } : {}),
   });
 
-  const run = await client.runs.createAgentRun({
+  const run = await client.runs.createUrlRun({
     url: agentRun.url,
-    focus: agentRun.focus,
-    actionBudget: agentRun.actionBudget,
+    prompt: agentRun.focus,
   });
 
   printJson("Created agent run", run);

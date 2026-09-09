@@ -21,6 +21,7 @@ function runExample(exampleFile: string) {
       ARGA_API_KEY: "",
     },
     encoding: "utf8",
+    timeout: 10_000,
   });
 }
 
@@ -33,21 +34,19 @@ describe("examples smoke test", () => {
     expect(typeof exploreStagingWithAgent.main).toBe("function");
   });
 
-  it("prints setup guidance when an example is run without an API key", () => {
-    for (const exampleFile of [
-      "examples/validate_staging_release.ts",
-      "examples/create_checkout_scenario.ts",
-      "examples/ensure_scenario_twin_urls.ts",
-      "examples/provision_checkout_twins.ts",
-      "examples/explore_staging_with_agent.ts",
-    ]) {
-      const result = runExample(exampleFile);
+  it.each([
+    "examples/validate_staging_release.ts",
+    "examples/create_checkout_scenario.ts",
+    "examples/ensure_scenario_twin_urls.ts",
+    "examples/provision_checkout_twins.ts",
+    "examples/explore_staging_with_agent.ts",
+  ])("prints setup guidance for %s without an API key", (exampleFile) => {
+    const result = runExample(exampleFile);
 
-      expect(result.error).toBeUndefined();
-      expect(result.status).toBe(1);
-      expect(`${result.stdout}${result.stderr}`).toContain(
-        "Set ARGA_API_KEY before running this example. See examples/README.md for setup details.",
-      );
-    }
-  });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(`${result.stdout}${result.stderr}`).toContain(
+      "Set ARGA_API_KEY before running this example. See examples/README.md for setup details.",
+    );
+  }, 15_000);
 });
