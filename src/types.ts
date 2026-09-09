@@ -143,10 +143,17 @@ export interface TwinMcpInfo {
   notes?: string | null;
 }
 
+/** Fast favors speed; thorough handles complex requirements with a longer wait. */
+export type ScenarioGenerationMode = "fast" | "thorough";
+
 export interface ProvisionTwinsParams {
   twins: TwinName[];
   ttlMinutes?: number;
   scenarioId?: string;
+  /** Generate seed data from this prompt when scenarioId is absent. */
+  scenarioPrompt?: string;
+  /** Defaults to fast. Only affects scenarioPrompt; saved scenarios reuse their seed data. */
+  scenarioGenerationMode?: ScenarioGenerationMode;
   /**
    * Whether the provisioned twins should be reachable via their public
    * `pub-r<id>--<surface>` hosts without proxy auth, so the returned
@@ -220,6 +227,8 @@ export interface ResetTwinsResponse {
 export interface CreateScenarioParams {
   name: string;
   prompt?: string;
+  /** Defaults to fast. Only affects prompt generation; explicit seedConfig is used unchanged. */
+  generationMode?: ScenarioGenerationMode;
   seedConfig?: Record<string, unknown>;
   twins?: TwinName[];
   description?: string;

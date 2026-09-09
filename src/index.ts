@@ -24,6 +24,7 @@ export type {
   ExtendTwinsParams,
   ExtendTwinsResponse,
   ResetTwinsResponse,
+  ScenarioGenerationMode,
   CreateScenarioParams,
   ListScenariosParams,
   Scenario,

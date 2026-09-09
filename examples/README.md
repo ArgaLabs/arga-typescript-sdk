@@ -135,7 +135,7 @@ npx tsx examples/explore_staging_with_agent.ts
 
 What it does:
 
-- launches an autonomous agent run against staging
+- launches a URL run against staging with an exploration prompt
 - waits for the run to finish
 - prints the high-signal artifacts you would review before acting on the build
 
