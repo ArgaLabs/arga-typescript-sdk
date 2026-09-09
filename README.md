@@ -116,6 +116,30 @@ edits, and expected output for each example.
 | `client.scenarios.deleteTwinEnvironment(scenarioId)` | Tear down a permanent twin environment |
 | `client.scenarios.listTwinEnvironments()` | List permanent scenario twin environments |
 
+## Scenario generation modes
+
+```typescript
+const scenario = await client.scenarios.create({
+  name: 'Support escalation',
+  prompt: 'A Slack support channel with linked escalation threads and consistent message authors',
+  generationMode: 'thorough',
+});
+```
+
+Fast is the default for everyday scenarios. Thorough handles complex requirements with a longer wait. Explicit `seedConfig` bypasses generation. Import the `ScenarioGenerationMode` type from `arga-sdk` for typed helpers.
+
+### Generate seed data from a prompt
+
+```typescript
+const { runId } = await client.twins.provision({
+  twins: ['slack'],
+  scenarioPrompt: 'A support channel with linked escalation threads and consistent message authors',
+  scenarioGenerationMode: 'thorough',
+});
+```
+
+Use `scenarioGenerationMode: 'fast'` for everyday scenarios, or omit it to use the server's Fast default. Thorough handles complex requirements with a longer wait. A `scenarioId` takes precedence and reuses saved seed data.
+
 ## Error Handling
 
 ```typescript
