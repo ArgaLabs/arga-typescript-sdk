@@ -21,6 +21,9 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - run: npm run typecheck
+      - run: npm run examples:check
+      - run: npm audit --omit=dev
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}

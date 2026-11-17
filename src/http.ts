@@ -14,18 +14,54 @@ function toCamelCase(str: string): string {
   return str.replace(/_([a-z])/g, (_, ch: string) => ch.toUpperCase());
 }
 
-/** Recursively convert all object keys using the supplied key mapper. */
-function convertKeys(
-  obj: unknown,
-  mapper: (key: string) => string,
-): unknown {
+const OPAQUE_KEYS = new Set([
+  "seed_config",
+  "seedConfig",
+  "test_config",
+  "testConfig",
+  "test_config_json",
+  "testConfigJson",
+  "credentials",
+  "env_vars",
+  "envVars",
+  "spec",
+  "before",
+  "after",
+  "payload",
+  "grader_artifact",
+  "graderArtifact",
+  "grader",
+  "example",
+  "traces",
+  "snapshots",
+  "seed_results",
+  "seedResults",
+  "factory_reset",
+  "factoryReset",
+]);
+
+/** Recursively convert model keys, preserving customer JSON documents. */
+function convertKeys(obj: unknown, mapper: (key: string) => string): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) => convertKeys(item, mapper));
   }
   if (obj !== null && typeof obj === "object" && !(obj instanceof Date)) {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      result[mapper(key)] = convertKeys(value, mapper);
+      // These are customer/provider-owned documents, not SDK model fields.
+      result[mapper(key)] = OPAQUE_KEYS.has(key)
+        ? value
+        : key === "twins" &&
+            value &&
+            !Array.isArray(value) &&
+            typeof value === "object"
+          ? Object.fromEntries(
+              Object.entries(value).map(([name, twin]) => [
+                name,
+                convertKeys(twin, mapper),
+              ]),
+            )
+          : convertKeys(value, mapper);
     }
     return result;
   }
@@ -50,18 +86,23 @@ export interface HttpClientOptions {
   baseUrl: string;
   apiKey: string;
   fetch: typeof globalThis.fetch;
+  timeout?: number;
 }
 
 export class HttpClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly _fetch: typeof globalThis.fetch;
+  private readonly timeout: number;
 
   constructor(opts: HttpClientOptions) {
     // Strip trailing slash from base URL
     this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
     this.apiKey = opts.apiKey;
     this._fetch = opts.fetch;
+    this.timeout = opts.timeout ?? 300_000;
+    if (!Number.isFinite(this.timeout) || this.timeout <= 0)
+      throw new ArgaError("Invalid request timeout");
   }
 
   // ---- public helpers -----------------------------------------------------
@@ -71,6 +112,8 @@ export class HttpClient {
     const res = await this._fetch(url, {
       method: "GET",
       headers: this.headers(),
+      signal: AbortSignal.timeout(this.timeout),
+      redirect: "error",
     });
     return this.handleResponse<T>(res);
   }
@@ -80,7 +123,10 @@ export class HttpClient {
     const res = await this._fetch(url, {
       method: "POST",
       headers: this.headers(),
-      body: body !== undefined ? JSON.stringify(toSnakeCaseKeys(body)) : undefined,
+      body:
+        body !== undefined ? JSON.stringify(toSnakeCaseKeys(body)) : undefined,
+      signal: AbortSignal.timeout(this.timeout),
+      redirect: "error",
     });
     return this.handleResponse<T>(res);
   }
@@ -90,8 +136,65 @@ export class HttpClient {
     const res = await this._fetch(url, {
       method: "DELETE",
       headers: this.headers(),
+      signal: AbortSignal.timeout(this.timeout),
+      redirect: "error",
     });
     return this.handleResponse<T>(res);
+  }
+
+  async put<T>(path: string, body: unknown): Promise<T> {
+    return this.update("PUT", path, body);
+  }
+  async patch<T>(path: string, body: unknown): Promise<T> {
+    return this.update("PATCH", path, body);
+  }
+  private async update<T>(
+    method: string,
+    path: string,
+    body: unknown,
+  ): Promise<T> {
+    return this.handleResponse<T>(
+      await this._fetch(this.buildUrl(path), {
+        method,
+        headers: this.headers(),
+        body: JSON.stringify(toSnakeCaseKeys(body)),
+        signal: AbortSignal.timeout(this.timeout),
+        redirect: "error",
+      }),
+    );
+  }
+  /** Raw evidence has its own strict snake_case contract. Never transform its keys. */
+  async postEvidence<T>(payload: unknown): Promise<T> {
+    return this.handleResponse<T>(
+      await this._fetch(this.buildUrl("/datasets/evidence"), {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(this.timeout),
+        redirect: "error",
+      }),
+    );
+  }
+  async getText(path: string): Promise<string> {
+    const res = await this._fetch(this.buildUrl(path), {
+      headers: this.headers(),
+      signal: AbortSignal.timeout(this.timeout),
+      redirect: "error",
+    });
+    if (!res.ok) await this.throwApiError(res);
+    return res.text();
+  }
+  async getRedirect(path: string): Promise<string> {
+    const res = await this._fetch(this.buildUrl(path), {
+      headers: this.headers(),
+      signal: AbortSignal.timeout(this.timeout),
+      redirect: "manual",
+    });
+    const location = res.headers.get("location");
+    if ([301, 302, 303, 307, 308].includes(res.status) && location)
+      return new URL(location, this.baseUrl).toString();
+    if (!res.ok) await this.throwApiError(res);
+    throw new ArgaError("Artifact response did not include a redirect");
   }
 
   /**
@@ -105,6 +208,7 @@ export class HttpClient {
         ...this.headers(),
         Accept: "text/event-stream",
       },
+      redirect: "error",
     });
     if (!res.ok) {
       await this.throwApiError(res);
@@ -137,6 +241,7 @@ export class HttpClient {
     if (!res.ok) {
       await this.throwApiError(res);
     }
+    if (res.status === 204) return undefined as T;
     const json = await res.json();
     return toCamelCaseKeys(json) as T;
   }
@@ -150,7 +255,9 @@ export class HttpClient {
     }
 
     const detail =
-      body && typeof body === "object" && "detail" in (body as Record<string, unknown>)
+      body &&
+      typeof body === "object" &&
+      "detail" in (body as Record<string, unknown>)
         ? String((body as Record<string, unknown>).detail)
         : `HTTP ${res.status}`;
 

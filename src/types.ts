@@ -5,10 +5,122 @@
 export interface ArgaClientOptions {
   /** Arga API key (starts with `arga_`). */
   apiKey: string;
-  /** Base URL for the Arga API. Default: `https://app.argalabs.com` */
+  /** Base URL for the Arga API. Default: `https://api.argalabs.com` */
   baseUrl?: string;
+  /** Request timeout in milliseconds. Default: 300000 (generation can take 240s). */
+  timeout?: number;
   /** Custom fetch implementation. Default: global `fetch`. */
   fetch?: typeof globalThis.fetch;
+}
+
+/** v0.2 canonical API models. Customer-owned JSON keeps its original keys. */
+export interface CreateTwinRunParams extends ProvisionTwinsParams {
+  accessProfile?: "full" | "candidate_api_only";
+  githubActionsMode?: "simulated" | "execute";
+}
+export interface TestRunOverrides {
+  prompt?: string | null;
+  startUrl?: string | null;
+  sandboxId?: string | null;
+  repo?: string | null;
+  branch?: string | null;
+  prUrl?: string | null;
+  scenarioId?: string | null;
+  scenarioPrompt?: string | null;
+  twins?: TwinName[] | null;
+  ttlMinutes?: number | null;
+  triggerSource?: string | null;
+}
+export interface CreateTestRunParams extends TestRunOverrides {
+  prompt: string;
+  testConfig?: Record<string, unknown> | null;
+}
+export interface TestRun {
+  id: string;
+  status: string;
+  prompt?: string | null;
+  startUrl?: string | null;
+  mode?: string;
+  testConfigJson?: Record<string, unknown> | null;
+  result?: unknown;
+  eventsJson?: Record<string, unknown>[];
+  artifactsJson?: Record<string, unknown>;
+  summaryText?: string | null;
+  errorMessage?: string | null;
+  failureDetail?: string | null;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+export interface UpdateSavedTestParams {
+  name?: string | null;
+  description?: string | null;
+  prompt?: string | null;
+  startUrl?: string | null;
+  testConfig?: Record<string, unknown> | null;
+  repoFullName?: string | null;
+  ciEnabled?: boolean | null;
+  credentials?: Record<string, string> | null;
+  tags?: string[] | null;
+}
+export interface CreateSavedTestParams extends UpdateSavedTestParams {
+  name: string;
+  runId?: string | null;
+}
+export interface SavedTestRunOverrides extends TestRunOverrides {
+  sessionId?: string | null;
+}
+export interface SavedTest {
+  id: string;
+  name: string;
+  prompt?: string;
+  startUrl?: string;
+  testConfigJson?: Record<string, unknown>;
+  ciEnabled?: boolean;
+  tags?: string[];
+  [key: string]: unknown;
+}
+export interface UpdateScenarioParams {
+  name?: string | null;
+  description?: string | null;
+  prompt?: string | null;
+  generationMode?: ScenarioGenerationMode;
+  twins?: TwinName[] | null;
+  seedConfig?: Record<string, unknown> | null;
+  tags?: string[] | null;
+}
+export interface TrainingDataset {
+  id: string;
+  name: string;
+  traceCount?: number;
+  taskCount?: number;
+  [key: string]: unknown;
+}
+export interface TrainingDatasetDetail extends TrainingDataset {
+  traces: Array<{ id: string; [key: string]: unknown }>;
+  tasks: TrainingTask[];
+}
+export interface TrainingTask {
+  id: string;
+  traceId: string;
+  revision: number;
+  spec: Record<string, unknown>;
+  status: "draft" | "approved" | "rejected";
+  scenarioId?: string | null;
+  graderArtifact?: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+export interface EvidenceReceipt {
+  id: string;
+  [key: string]: unknown;
+}
+export interface GraderArtifact {
+  revision: number;
+  grader: { source: string; source_hash: string; [key: string]: unknown };
+  example: Record<string, unknown>;
+}
+export interface GraderResult {
+  outcome: "pass" | "fail" | "unsafe" | "error";
+  [key: string]: unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +312,7 @@ export interface TwinProvisionStatus {
    */
   isPublic?: boolean;
   error?: string;
+  failureDetail?: string | null;
 }
 
 export interface ExtendTwinsParams {
@@ -233,11 +346,17 @@ export interface CreateScenarioParams {
   twins?: TwinName[];
   description?: string;
   tags?: string[];
+  scope?: "personal" | "workspace";
 }
 
 export interface ListScenariosParams {
   twin?: string;
   tag?: string;
+  scope?: "personal" | "workspace";
+  includePresets?: boolean;
+  limit?: number;
+  offset?: number;
+  search?: string;
 }
 
 export interface Scenario {
@@ -250,6 +369,11 @@ export interface Scenario {
   tags?: string[];
   createdAt?: string;
   updatedAt?: string;
+  scope?: "personal" | "workspace";
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canClone?: boolean;
+  canCreateEnvironment?: boolean;
 }
 
 export interface EnsureScenarioTwinEnvironmentParams {
