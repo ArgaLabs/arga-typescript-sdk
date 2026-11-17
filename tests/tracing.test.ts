@@ -308,10 +308,14 @@ describe("per-client instrumentation", () => {
       gmail = t.wrapGmail(raw);
     await t.episode({ goal: "Task" }, async () => {
       expect(await gmail.users.messages.get({ id: message.id })).toBe(response);
-      await new Promise<void>((resolve) =>
+      await new Promise<void>((resolve, reject) =>
         gmail.users.messages.get({ id: message.id }, (e, r) => {
-          expect(r).toBe(response);
-          resolve();
+          try {
+            expect(r).toBe(response);
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
         }),
       );
     });

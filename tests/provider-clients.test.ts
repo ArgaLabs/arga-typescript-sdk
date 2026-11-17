@@ -71,6 +71,9 @@ describe("official provider clients", () => {
     });
     expect(calls).toBe(2);
     expect(tracing.lastEpisode?.events).toHaveLength(2);
+    expect(JSON.stringify(tracing.lastEpisode)).not.toMatch(
+      /message_private|thread_private|ch_private|pi_private/,
+    );
     expect(tracing.lastEpisode?.issues).toEqual([]);
   });
   it("wraps Stripe camelCase resources and preserves list helpers and lastResponse", async () => {
@@ -118,6 +121,9 @@ describe("official provider clients", () => {
     expect(calls).toBe(2);
     expect(tracing.lastEpisode?.events).toHaveLength(2);
     expect(tracing.lastEpisode?.events[0].resource).toBe("payment_intents");
+    expect(JSON.stringify(tracing.lastEpisode)).not.toMatch(
+      /message_private|thread_private|ch_private|pi_private/,
+    );
     expect(tracing.lastEpisode?.issues).toEqual([]);
   });
 });

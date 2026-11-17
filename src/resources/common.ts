@@ -39,7 +39,7 @@ export async function poll<T extends { status: string }>(
         `Timed out waiting for ${label} after ${timeout}ms (last status: ${value.status})`,
       );
     await new Promise((resolve) =>
-      setTimeout(resolve, Math.min(interval, remaining)),
+      setTimeout(resolve, Math.min(interval, remaining, 2147483647)),
     );
   }
 }

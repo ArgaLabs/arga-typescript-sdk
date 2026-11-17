@@ -200,9 +200,9 @@ it("rejects an explicitly empty repository filter", async () => {
     "repoFullName must not be empty",
   );
 });
-it("rejects inconsistent operation scopes before upload", () => {
+it("rejects inconsistent operation scopes through the promise contract", async () => {
   const client = new Arga({ apiKey: "test" });
-  expect(() =>
+  await expect(
     client.training.uploadEvidence({
       schema_version: "arga.evidence.v1",
       source: "test",
@@ -223,5 +223,5 @@ it("rejects inconsistent operation scopes before upload", () => {
         },
       ],
     }),
-  ).toThrow("Unsupported evidence operation or scope");
+  ).rejects.toThrow("Unsupported evidence operation or scope");
 });

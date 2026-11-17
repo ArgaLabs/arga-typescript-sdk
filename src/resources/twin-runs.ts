@@ -46,6 +46,7 @@ export class TwinRunsResource {
         "ready",
         "failed",
         "cancelled",
+        "canceled",
         "expired",
         "torn_down",
         "error",

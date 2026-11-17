@@ -3,6 +3,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   Projector,
   Tracing,
@@ -101,7 +102,7 @@ describe("CLI validation and retry behavior", () => {
           "--import",
           "tsx",
           "--import",
-          hook,
+          pathToFileURL(hook).href,
           "src/tracing/cli.ts",
           "--project",
           "12345678-1234-4234-8234-123456789012",
@@ -235,4 +236,26 @@ it("reads bounded nested MIME while retaining other fields after invalid UTF-8",
   p.record(["gmail", "messages", "get"], {}, raw);
   expect(p.episode.events[0].records[0].body).toBe("Nested body");
   expect(p.episode.issues).toContain("projection_failed");
+});
+
+it("does not mask ordinary risk wording as a secret key", () => {
+  const t = new Tracing({
+    source: "test",
+    upload: false,
+    policy: new CapturePolicy({ textFields: ["goal"] }),
+  });
+  t.episode({ goal: "Follow the risk-assessment-framework" }, () => {});
+  expect(t.lastEpisode?.goal).toBe("Follow the risk-assessment-framework");
+});
+it("omits whitespace-only email rather than creating an invalid alias", () => {
+  const p = new Projector({
+    source: "test",
+    episodeKey: "one",
+    aliasKey: Buffer.alloc(32),
+    policy: new CapturePolicy(),
+  });
+  expect(p.email("   ")).toBeUndefined();
+  expect(
+    p.stripeRecord("customers", { id: "cus_test", email: "   " }),
+  ).not.toHaveProperty("email");
 });

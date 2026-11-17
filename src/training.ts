@@ -47,7 +47,7 @@ export class TrainingResource {
     >("/datasets/evidence-key", params);
     return { ...result, key: new Secret(result.key) };
   }
-  uploadEvidence(episode: Episode): Promise<EvidenceReceipt> {
+  async uploadEvidence(episode: Episode): Promise<EvidenceReceipt> {
     return this.http.postEvidence(validateEpisode(episode));
   }
   list(

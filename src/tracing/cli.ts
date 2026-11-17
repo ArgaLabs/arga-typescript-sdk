@@ -105,8 +105,8 @@ For customer-specific text filters use the programmatic BraintrustSync API.`);
     stopping = true;
     wake?.();
   };
-  process.once("SIGINT", stop);
-  process.once("SIGTERM", stop);
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
   let failures = 0;
   const pause = (seconds: number) =>
     new Promise<void>((resolve) => {
@@ -130,10 +130,26 @@ For customer-specific text filters use the programmatic BraintrustSync API.`);
         if (counters.caughtUp) await pause(interval);
       } catch (error) {
         if (!values.watch) throw error;
+        const code = (error as NodeJS.ErrnoException)?.code;
+        const safeCode =
+          typeof code === "string" &&
+          new Set([
+            "EACCES",
+            "EPERM",
+            "ENOSPC",
+            "EROFS",
+            "ENOENT",
+            "ENOTDIR",
+            "EIO",
+            "EMFILE",
+            "ENFILE",
+          ]).has(code)
+            ? ` (${code})`
+            : "";
         console.error(
           error instanceof SyncError
             ? error.message
-            : "Sync pass failed; checkpoint retained",
+            : `Sync pass failed; checkpoint retained${safeCode}`,
         );
         await pause(Math.min(300, interval * 2 ** Math.min(failures++, 8)));
       }

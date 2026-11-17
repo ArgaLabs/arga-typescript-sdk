@@ -175,9 +175,9 @@ describe("current backend contracts", () => {
         }),
     );
     const client = new Arga({ apiKey: "TEST_KEY", fetch });
-    expect(
-      await client.testRuns.artifactUrl("id", "screens/one.png"),
-    ).toContain("https://storage.example/");
+    expect(await client.testRuns.artifactUrl("id", "screens/one.png")).toBe(
+      "https://storage.example/artifact?signature=abc",
+    );
     expect(fetch).toHaveBeenCalledOnce();
     expect(fetch.mock.calls[0][1]?.redirect).toBe("manual");
     expect(() => client.testRuns.artifactUrl("id", "../secret")).toThrow();

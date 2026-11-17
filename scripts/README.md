@@ -2,7 +2,7 @@
 
 `e2e.mjs` is an explicit opt-in test using synthetic fixtures. It requires a full
 Arga credential in `ARGA_API_KEY` or the existing local Arga CLI profile, and a
-Braintrust credential in `BRAINTRUST_API_KEY`. Its macOS fallback reads the
+Braintrust credential in `BRAINTRUST_API_KEY`. The Braintrust macOS fallback reads the
 temporary `arga-ts-sdk-e2e` CLI profile from Keychain, without printing it.
 
 Use a private directory outside the repository. Never commit its state: it
@@ -46,3 +46,11 @@ Always request teardown in `cleanup`, confirm the source run is `torn_down`, and
 delete the source Scenario. Keep the resulting synthetic drafts for review as
 needed. Remove temporary CLI/Keychain login profiles after completing the test;
 local logout is not server-side credential revocation.
+
+If immediate server-side revocation is needed, coordinate it with the credential
+owner: revoke dedicated Braintrust API keys in Braintrust settings using that
+service's supported account controls. Do not assume CLI logout revokes OAuth
+access. Arga v1 upload keys expire after 30 days and have no individual revocation
+endpoint; rotating/revoking their parent account credential/session invalidates
+them but can also affect other integrations. The harness therefore removes only
+its temporary local Braintrust profile, never rotates an existing account key.

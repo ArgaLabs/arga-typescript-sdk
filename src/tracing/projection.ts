@@ -74,7 +74,7 @@ const SYSTEM_LABELS = new Set([
 ]);
 const RESOURCE_ID = /\b(cus|pi|ch|re)_[A-Za-z0-9_]+\b/g;
 const SECRET =
-  /(?:Bearer\s+\S+|(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+|sk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}|arga_[A-Za-z0-9_.-]+|ya29\.[A-Za-z0-9._-]+|["']?(?:password|api[_-]?key|access[_-]?token|secret)["']?\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;}\]]+))/gi;
+  /(?:Bearer\s+\S+|(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+|\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}|arga_[A-Za-z0-9_.-]+|ya29\.[A-Za-z0-9._-]+|["']?(?:password|api[_-]?key|access[_-]?token|secret)["']?\s*[:=]\s*(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;}\]]+))/gi;
 export function value(
   object: unknown,
   key: string,
@@ -182,8 +182,10 @@ export class Projector {
       : undefined;
   }
   email(original: unknown): string | undefined {
-    return typeof original === "string" && original
-      ? `${this.alias("person", original.trim().toLowerCase())}@example.invalid`
+    const normalized =
+      typeof original === "string" ? original.trim().toLowerCase() : "";
+    return normalized
+      ? `${this.alias("person", normalized)}@example.invalid`
       : undefined;
   }
   text(name: string, original: unknown): string | undefined {
