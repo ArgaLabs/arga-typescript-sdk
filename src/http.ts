@@ -1,4 +1,5 @@
 import { ArgaAPIError, ArgaError } from "./errors.js";
+import { stripTrailingSlashes } from "./tracing/strings.js";
 
 // ---------------------------------------------------------------------------
 // Case conversion helpers
@@ -97,7 +98,7 @@ export class HttpClient {
 
   constructor(opts: HttpClientOptions) {
     // Strip trailing slash from base URL
-    this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
+    this.baseUrl = stripTrailingSlashes(opts.baseUrl);
     this.apiKey = opts.apiKey;
     this._fetch = opts.fetch;
     this.timeout = opts.timeout ?? 300_000;

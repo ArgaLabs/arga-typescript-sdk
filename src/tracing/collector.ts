@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { CapturePolicy, Projector, READS } from "./projection.js";
 import { validateEpisode, type Episode, type Operation } from "./models.js";
 import { wrapProvider } from "./adapters.js";
+import { stripTrailingSlashes } from "./strings.js";
 
 export interface TracingOptions {
   source: string;
@@ -78,9 +79,8 @@ export class Tracing {
       this.timeout > 60000
     )
       throw new Error("Invalid exporter bounds");
-    this.baseUrl = (options.baseUrl ?? "https://api.argalabs.com").replace(
-      /\/+$/,
-      "",
+    this.baseUrl = stripTrailingSlashes(
+      options.baseUrl ?? "https://api.argalabs.com",
     );
     const url = new URL(this.baseUrl);
     if (

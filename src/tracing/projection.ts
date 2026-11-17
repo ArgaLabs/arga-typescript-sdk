@@ -1,3 +1,4 @@
+import { replaceEmails, extractEmails } from "./strings.js";
 import { createHash, createHmac } from "node:crypto";
 import {
   MAX_EVIDENCE_BYTES,
@@ -71,7 +72,6 @@ const SYSTEM_LABELS = new Set([
   "CATEGORY_UPDATES",
   "CATEGORY_FORUMS",
 ]);
-const EMAIL = /[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const RESOURCE_ID = /\b(cus|pi|ch|re)_[A-Za-z0-9_]+\b/g;
 const SECRET =
   /(?:Bearer\s+\S+|(?:sk|rk)_(?:live|test)_[A-Za-z0-9]+|sk-ant-[A-Za-z0-9_-]+|ya29\.[A-Za-z0-9._-]+|(?:password|api[_-]?key|access[_-]?token|secret)\s*[:=]\s*[^\s,;]+)/gi;
@@ -190,21 +190,25 @@ export class Projector {
       this.issue("text_dropped");
       return;
     }
-    if ([...original].length > 32000) {
+    if (original.length > 64000 || [...original].length > 32000) {
       this.issue("payload_limit");
       return;
     }
     const result = this.options.policy.transformText
       ? this.options.policy.transformText(original)
       : original;
-    if (typeof result !== "string" || [...result].length > 4000) {
+    if (
+      typeof result !== "string" ||
+      result.length > 8000 ||
+      [...result].length > 4000
+    ) {
       this.issue("projection_failed");
       return;
     }
-    return result
-      .replace(SECRET, "[credential removed]")
-      .replace(EMAIL, (email) => this.email(email)!)
-      .replace(RESOURCE_ID, (id, prefix: string) => this.alias(prefix, id)!);
+    return replaceEmails(
+      result.replace(SECRET, "[credential removed]"),
+      (email) => this.email(email)!,
+    ).replace(RESOURCE_ID, (id, prefix: string) => this.alias(prefix, id)!);
   }
   setGoal(goal: unknown, policies: readonly string[] = []): void {
     try {
@@ -302,15 +306,21 @@ export class Projector {
     }
     const payload = value(raw, "payload", {}),
       headers = value(payload, "headers", []);
-    for (const header of Array.isArray(headers) ? headers : []) {
+    if (Array.isArray(headers) && headers.length > 200)
+      this.issue("payload_limit");
+    for (const header of Array.isArray(headers) ? headers.slice(0, 200) : []) {
       const name = value(header, "name"),
         content = value(header, "value");
       if (typeof name !== "string" || typeof content !== "string") continue;
+      if (content.length > 64000) {
+        this.issue("payload_limit");
+        continue;
+      }
       if (name.toLowerCase() === "subject") {
         const text = this.text("gmail.subject", content);
         if (text !== undefined) fields.subject = text;
       } else if (["from", "to"].includes(name.toLowerCase())) {
-        const emails = (content.match(EMAIL) ?? []).map((email) =>
+        const emails = extractEmails(content).map((email) =>
           this.email(email)!,
         );
         if (name.toLowerCase() === "from" && emails.length)

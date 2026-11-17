@@ -3,6 +3,7 @@ import { constants } from "node:fs";
 import { open, mkdir, rename, unlink, chmod } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { operationFor } from "./adapters.js";
+import { stripTrailingSlashes } from "./strings.js";
 import {
   CapturePolicy,
   Projector,
@@ -240,9 +241,8 @@ export class BraintrustSync {
     this.region = options.region ?? "us";
     if (!["us", "eu"].includes(this.region))
       throw new Error("Invalid Braintrust region");
-    this.baseUrl = (options.baseUrl ?? "https://api.argalabs.com").replace(
-      /\/+$/,
-      "",
+    this.baseUrl = stripTrailingSlashes(
+      options.baseUrl ?? "https://api.argalabs.com",
     );
     const destination = new URL(this.baseUrl);
     if (
