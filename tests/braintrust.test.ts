@@ -333,6 +333,30 @@ describe("durable customer-run sync", () => {
     await writeFile(state, "{}");
     await expect(worker(state, fetch).syncOnce()).rejects.toThrow();
   });
+  it("reads signed storage redirects without forwarding API credentials or query bodies", async () => {
+    const state = await checkpoint();
+    const requests: { url: string; init?: RequestInit }[] = [];
+    const fetch = (async (url, init) => {
+      requests.push({ url: String(url), init });
+      return String(url).includes("api.braintrust.dev")
+        ? new Response(null, {
+            status: 302,
+            headers: {
+              location:
+                "https://results.s3.amazonaws.com/query.json?signature=opaque",
+            },
+          })
+        : Response.json({ data: [] });
+    }) as typeof globalThis.fetch;
+    expect(
+      (await worker(state, fetch).syncOnce({ until: new Date(120000) }))
+        .uploaded,
+    ).toBe(0);
+    expect(requests).toHaveLength(2);
+    expect(requests[1].init?.method).toBe("GET");
+    expect(requests[1].init?.headers).toBeUndefined();
+    expect(requests[1].init?.body).toBeUndefined();
+  });
   it("uses EU only for Braintrust and preserves region/destination separation", async () => {
     const state = await checkpoint(),
       urls: string[] = [];

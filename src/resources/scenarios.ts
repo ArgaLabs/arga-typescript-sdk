@@ -21,11 +21,15 @@ export class ScenariosResource {
   copy(id: string, params: { name?: string } = {}): Promise<Scenario> {
     return this.http.post(`/scenarios/${segment(id)}/copy`, params);
   }
-  listPresets(params: ListScenariosParams = {}): Promise<Scenario[]> {
+  listPresets(
+    params: Pick<ListScenariosParams, "twin" | "tag"> = {},
+  ): Promise<Scenario[]> {
     return this.http.get(
       "/scenarios/presets",
       Object.fromEntries(
-        Object.entries(params).filter(([, v]) => v !== undefined),
+        Object.entries({ twin: params.twin, tag: params.tag }).filter(
+          ([, v]) => v !== undefined,
+        ),
       ) as Record<string, string>,
     );
   }

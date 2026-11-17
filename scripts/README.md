@@ -25,7 +25,8 @@ node scripts/e2e.mjs cleanup /private/path/state.json
 `prepare` saves an exact Scenario fixture and provisions Gmail/Stripe twins.
 `capture` calls official provider libraries, then checks the actual outcome and
 the privacy of uploaded and stored evidence. It is a one-shot mutation: reset
-the run before repeating it. Braintrust fixture writes use the official writer
+the run with `await client.twinRuns.reset(runId)` before repeating it, or use a
+new private state path and run `prepare` again. Braintrust fixture writes use the official writer
 and an isolated project; the Arga sync itself uses HTTP. Braintrust indexing can
 be delayed after a flush; retry the sync phase with the same checkpoint if the
 first discovery window sees no roots. The overlap handles late indexed traces.

@@ -57,8 +57,12 @@ describe("official provider clients", () => {
           (err, response) => {
             if (err) reject(err);
             else {
-              expect(response?.data.id).toBe("message_private");
-              resolve();
+              try {
+                expect(response?.data.id).toBe("message_private");
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
             }
           },
         ),

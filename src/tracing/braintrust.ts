@@ -220,7 +220,7 @@ export class BraintrustSync {
   #argaKey: string;
   constructor(options: BraintrustSyncOptions) {
     if (!UUID.test(options.projectId))
-      throw new Error("Invalid Braintrust project ID");
+      throw new SyncError("Invalid Braintrust project ID");
     this.projectId = options.projectId.toLowerCase();
     this.source = options.source;
     this.policy = options.policy ?? new CapturePolicy();
@@ -240,20 +240,28 @@ export class BraintrustSync {
       );
     this.region = options.region ?? "us";
     if (!["us", "eu"].includes(this.region))
-      throw new Error("Invalid Braintrust region");
+      throw new SyncError("Invalid Braintrust region");
     this.baseUrl = stripTrailingSlashes(
       options.baseUrl ?? "https://api.argalabs.com",
     );
-    const destination = new URL(this.baseUrl);
+    let destination: URL;
+    try {
+      destination = new URL(this.baseUrl);
+    } catch {
+      throw new SyncError("Invalid Arga destination URL");
+    }
     if (
       destination.protocol !== "https:" ||
       destination.username ||
       destination.password
     )
-      throw new Error("Use HTTPS for Arga sync");
+      throw new SyncError("Use HTTPS for Arga sync");
     this.goalPointer = options.goalPointer ?? "/input";
-    if (this.goalPointer && !this.goalPointer.startsWith("/"))
-      throw new Error("Use a JSON pointer");
+    if (
+      typeof this.goalPointer !== "string" ||
+      (this.goalPointer && !this.goalPointer.startsWith("/"))
+    )
+      throw new SyncError("Use a JSON pointer");
     this.policies = Object.freeze([...(options.policies ?? [])]);
     this.operations = Object.freeze({ ...options.operations });
     if (Object.values(this.operations).some((name) => !operationFor(name)))
@@ -306,7 +314,7 @@ export class BraintrustSync {
       totalBytes = 0;
     try {
       for (let page = 0; page < 100; page++) {
-        const response: Response = await this.fetcher(
+        let response: Response = await this.fetcher(
           `${this.region === "eu" ? "https://api-eu.braintrust.dev" : "https://api.braintrust.dev"}/btql`,
           {
             method: "POST",
@@ -318,10 +326,42 @@ export class BraintrustSync {
               query: query + (cursor ? ` OFFSET ${literal(cursor)}` : ""),
               fmt: "json",
             }),
-            redirect: "error",
+            redirect: "manual",
             signal: AbortSignal.timeout(35000),
           },
         );
+        const apiCursor = response.headers.get("x-bt-cursor");
+        for (
+          let redirect = 0;
+          [301, 302, 303, 307, 308].includes(response.status);
+          redirect++
+        ) {
+          const location = response.headers.get("location");
+          if (redirect >= 3 || !location)
+            throw new SyncError("Invalid Braintrust response redirect");
+          const target = new URL(location);
+          const trusted =
+            ["api.braintrust.dev", "api-eu.braintrust.dev"].includes(
+              target.hostname,
+            ) || target.hostname.endsWith(".amazonaws.com");
+          if (
+            target.protocol !== "https:" ||
+            target.username ||
+            target.password ||
+            (target.port && target.port !== "443") ||
+            !trusted
+          )
+            throw new SyncError(
+              "Unsupported Braintrust response redirect; reduce the window",
+            );
+          await response.body?.cancel();
+          // Fetch signed response storage without forwarding the API credential or query body.
+          response = await this.fetcher(target.toString(), {
+            method: "GET",
+            redirect: "manual",
+            signal: AbortSignal.timeout(35000),
+          });
+        }
         if (!response.ok || !response.body) throw new Error();
         const reader = response.body.getReader(),
           chunks: Uint8Array[] = [];
@@ -356,7 +396,8 @@ export class BraintrustSync {
           );
         cursor =
           response.headers.get("x-bt-cursor") ??
-          response.headers.get("x-amz-meta-bt_cursor");
+          response.headers.get("x-amz-meta-bt_cursor") ??
+          apiCursor;
         if (!cursor) return rows;
         if (seen.has(cursor))
           throw new SyncError("Braintrust repeated a pagination cursor");

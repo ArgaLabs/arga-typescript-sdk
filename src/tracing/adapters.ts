@@ -70,6 +70,7 @@ export function wrapProvider<T extends object>(
   provider: Provider,
   path: string[] = [],
 ): T {
+  const cache = new Map<PropertyKey, { member: unknown; wrapped: unknown }>();
   // Google defines resource namespaces as frozen own properties. A proxy on the
   // original cannot substitute their wrappers without violating JS invariants.
   // Use a facade with the original prototype and bind every method to the real client.
@@ -92,13 +93,17 @@ export function wrapProvider<T extends object>(
       const member = Reflect.get(object, property, object);
       if (typeof property !== "string" || property.startsWith("_"))
         return typeof member === "function" ? member.bind(object) : member;
+      const cached = cache.get(property);
+      if (cached && cached.member === member) return cached.wrapped;
       const next = [...path, property];
       if (member && typeof member === "object") {
         // Provider resource namespaces only. Do not wrap auth/configuration/transport objects.
         const config = new Set(["context", "auth", "errors", "webhooks"]);
-        return config.has(property)
+        const wrapped = config.has(property)
           ? member
           : wrapProvider(member, tracing, provider, next);
+        cache.set(property, { member, wrapped });
+        return wrapped;
       }
       if (typeof member !== "function") return member;
       const canonical =
@@ -117,7 +122,7 @@ export function wrapProvider<T extends object>(
             ? "gmail.profile.get"
             : `gmail.${next.filter((part) => part !== "users").join(".")}`;
       const operation = operationFor(canonical);
-      return (...args: unknown[]) => {
+      const wrapped = (...args: unknown[]) => {
         const current = tracing.start(operation);
         let facts: Record<string, unknown> = {};
         try {
@@ -155,10 +160,16 @@ export function wrapProvider<T extends object>(
         try {
           const result = member.apply(object, args);
           if (result && typeof result.then === "function") {
-            // Observe, do not replace provider responses or errors. Catch observer failures locally.
-            void result.then(
-              (output: unknown) => end(output),
-              (error: unknown) => end(undefined, error),
+            // Return the observed chain: an ignored rejection must remain unhandled.
+            const observed = result.then(
+              (output: unknown) => {
+                end(output);
+                return output;
+              },
+              (error: unknown) => {
+                end(undefined, error);
+                throw error;
+              },
             );
             if (
               provider === "stripe" &&
@@ -166,6 +177,8 @@ export function wrapProvider<T extends object>(
             ) {
               return new Proxy(result, {
                 get(p, key) {
+                  if (key === "then" || key === "catch" || key === "finally")
+                    return observed[key].bind(observed);
                   const item = Reflect.get(p, key, p);
                   if (
                     key === "autoPagingEach" ||
@@ -173,6 +186,8 @@ export function wrapProvider<T extends object>(
                     key === Symbol.asyncIterator
                   ) {
                     return (...pageArgs: unknown[]) => {
+                      // The delegated iterator/helper propagates its own provider errors.
+                      void observed.catch(() => {});
                       current?.projector.issue("source_incomplete");
                       return item.apply(p, pageArgs);
                     };
@@ -181,6 +196,7 @@ export function wrapProvider<T extends object>(
                 },
               });
             }
+            return observed;
           } else if (typeof args[callbackIndex] !== "function") end(result);
           return result;
         } catch (error) {
@@ -188,6 +204,8 @@ export function wrapProvider<T extends object>(
           throw error;
         }
       };
+      cache.set(property, { member, wrapped });
+      return wrapped;
     },
   });
 }

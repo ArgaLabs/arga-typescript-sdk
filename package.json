@@ -19,12 +19,12 @@
     },
     "./tracing": {
       "import": {
-        "types": "./dist/tracing/index.d.ts",
-        "default": "./dist/tracing/index.js"
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
       },
       "require": {
-        "types": "./dist/tracing/index.d.cts",
-        "default": "./dist/tracing/index.cjs"
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
       }
     }
   },
@@ -35,7 +35,8 @@
     "build": "tsup",
     "examples:check": "tsc --noEmit -p tsconfig.examples.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "package:check": "node scripts/package-smoke.mjs"
   },
   "keywords": [
     "arga",

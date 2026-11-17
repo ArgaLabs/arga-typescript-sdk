@@ -1,4 +1,15 @@
 export { Arga } from "./client.js";
+export { EpisodeContext } from "./tracing/collector.js";
+export { Projector } from "./tracing/projection.js";
+export { validateEpisode, blockers, evidenceSchema } from "./tracing/models.js";
+export type { TracingOptions, EpisodeOptions } from "./tracing/collector.js";
+export type { CapturePolicyOptions } from "./tracing/projection.js";
+export type {
+  BraintrustSyncOptions,
+  TraceProjectionOptions,
+  SyncCounters,
+  BraintrustRow,
+} from "./tracing/braintrust.js";
 export type {
   TwinProvisionFailure,
   TwinProvisionProgress,

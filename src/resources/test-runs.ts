@@ -38,7 +38,14 @@ export class TestRunsResource {
   wait(id: string, options?: WaitOptions): Promise<TestRun> {
     return poll(
       () => this.get(id),
-      new Set(["completed", "failed", "cancelled"]),
+      new Set([
+        "completed",
+        "failed",
+        "cancelled",
+        "canceled",
+        "error",
+        "timed_out",
+      ]),
       options,
     );
   }

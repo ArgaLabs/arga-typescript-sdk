@@ -1,4 +1,4 @@
-import { Ajv2020 } from "ajv/dist/2020.js";
+import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 import schema from "./evidence.schema.json" with { type: "json" };
 
 export const MAX_EVIDENCE_BYTES = 100_000;
@@ -102,23 +102,48 @@ export interface Episode {
   issues: Issue[];
 }
 export const evidenceSchema = schema;
-const ajv = new Ajv2020({ strict: false, allErrors: false });
-const validate = ajv.compile(schema);
-const recordValidator = ajv.compile({
-  $ref: "#/$defs/Record",
-  $defs: schema.$defs,
-});
+let validate: ValidateFunction | undefined,
+  recordValidator: ValidateFunction | undefined;
+function validators(): void {
+  if (validate) return;
+  const ajv = new Ajv2020({ strict: false, allErrors: false });
+  validate = ajv.compile(schema);
+  recordValidator = ajv.compile({
+    $ref: "#/$defs/Record",
+    $defs: schema.$defs,
+  });
+}
 export function validateRecord(
   record: unknown,
 ): asserts record is EvidenceRecord {
-  if (!recordValidator(record)) throw new Error("Invalid projected record");
+  validators();
+  if (!recordValidator!(record)) throw new Error("Invalid projected record");
 }
 export function validateEpisode(episode: unknown): Episode {
-  if (!validate(episode)) throw new Error("Invalid evidence contract");
+  validators();
+  if (!validate!(episode)) throw new Error("Invalid evidence contract");
   // Detach prototype hooks such as non-enumerable toJSON before serialization.
   // Revalidate so getters cannot change fields after validation.
-  const value = structuredClone(episode) as unknown as Episode;
-  if (!validate(value)) throw new Error("Invalid evidence contract");
+  const detached = structuredClone(episode) as Record<string, unknown>;
+  const value = {
+    schema_version: "arga.evidence.v1",
+    origin: "sdk",
+    policies: [],
+    events: [],
+    issues: [],
+    ...detached,
+  } as unknown as Episode;
+  value.schema_version ??= "arga.evidence.v1";
+  value.origin ??= "sdk";
+  value.policies ??= [];
+  value.events ??= [];
+  value.issues ??= [];
+  value.events = value.events.map((event) => ({
+    ...event,
+    parameters: event.parameters ?? {},
+    records: event.records ?? [],
+  }));
+  if (!validate!(value)) throw new Error("Invalid evidence contract");
   if (value.events.some((event, i) => event.sequence !== i + 1))
     throw new Error("Events must have contiguous sequence numbers");
   if (Buffer.byteLength(JSON.stringify(value)) > MAX_EVIDENCE_BYTES)

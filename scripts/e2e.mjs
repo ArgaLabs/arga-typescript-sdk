@@ -4,7 +4,7 @@
  * Braintrust credential comes from BRAINTRUST_API_KEY or the temporary Keychain profile.
  * Never logs raw responses, credentials or source spans. */
 import assert from "node:assert/strict";
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, chmod } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -36,6 +36,7 @@ const state = await readFile(statePath, "utf8")
 const save = async () => {
   await mkdir(dirname(statePath), { recursive: true, mode: 0o700 });
   await writeFile(statePath, JSON.stringify(state), { mode: 0o600 });
+  await chmod(statePath, 0o600);
 };
 const log = (data) => console.log(JSON.stringify({ phase, ...data }));
 const CUSTOMER = "cus_ts_e2e",

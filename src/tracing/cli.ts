@@ -61,6 +61,9 @@ For customer-specific text filters use the programmatic BraintrustSync API.`);
     typeof config !== "object" ||
     Array.isArray(config) ||
     Object.keys(config).some((k) => !allowed.has(k)) ||
+    (config.goal_pointer !== undefined &&
+      typeof config.goal_pointer !== "string") ||
+    (config.revision !== undefined && typeof config.revision !== "string") ||
     (config.text_fields !== undefined &&
       (!Array.isArray(config.text_fields) ||
         config.text_fields.some((v: unknown) => typeof v !== "string"))) ||
@@ -99,19 +102,36 @@ For customer-specific text filters use the programmatic BraintrustSync API.`);
   };
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
+  let failures = 0;
+  const pause = (seconds: number) =>
+    new Promise<void>((resolve) => {
+      if (stopping) {
+        resolve();
+        return;
+      }
+      const timer = setTimeout(resolve, seconds * 1000);
+      wake = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
   try {
     do {
-      const counters = await sync.syncOnce();
-      console.log(JSON.stringify(counters));
-      if (!values.watch || stopping) break;
-      if (counters.caughtUp)
-        await new Promise<void>((resolve) => {
-          const timer = setTimeout(resolve, interval * 1000);
-          wake = () => {
-            clearTimeout(timer);
-            resolve();
-          };
-        });
+      try {
+        const counters = await sync.syncOnce();
+        failures = 0;
+        console.log(JSON.stringify(counters));
+        if (!values.watch || stopping) break;
+        if (counters.caughtUp) await pause(interval);
+      } catch (error) {
+        if (!values.watch) throw error;
+        console.error(
+          error instanceof SyncError
+            ? error.message
+            : "Sync pass failed; checkpoint retained",
+        );
+        await pause(Math.min(300, interval * 2 ** Math.min(failures++, 8)));
+      }
     } while (!stopping);
   } finally {
     process.off("SIGINT", stop);

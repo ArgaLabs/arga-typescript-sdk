@@ -351,6 +351,7 @@ export interface ExtendTwinsParams {
 export interface ExtendTwinsResponse {
   status: string;
   ttlMinutes: number;
+  expiresAt?: string | null;
 }
 
 /** Response from POST /validate/twins/provision/{run_id}/reset */

@@ -4,6 +4,7 @@ import type {
   ProvisionTwinsResponse,
   TwinProvisionStatus,
   ResetTwinsResponse,
+  ExtendTwinsResponse,
   WaitOptions,
 } from "../types.js";
 import { segment, poll } from "./common.js";
@@ -19,7 +20,7 @@ export class TwinRunsResource {
   extend(
     id: string,
     params: { ttlMinutes?: number } = {},
-  ): Promise<Record<string, unknown>> {
+  ): Promise<ExtendTwinsResponse> {
     return this.http.post(`/twin-runs/${segment(id)}/extend`, {
       ttlMinutes: params.ttlMinutes ?? 60,
     });

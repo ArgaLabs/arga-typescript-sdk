@@ -117,6 +117,7 @@ export class CapturePolicy {
     this.revision = options.revision ?? "1";
     if (
       this.textFields.some((field) => !TEXT_FIELDS.has(field)) ||
+      typeof this.revision !== "string" ||
       !/^[A-Za-z0-9_.-]{1,64}$/.test(this.revision)
     )
       throw new Error("Invalid local capture policy");
@@ -151,6 +152,7 @@ export class Projector {
   ) {
     if (
       options.aliasKey.length < 32 ||
+      typeof options.source !== "string" ||
       !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(options.source)
     )
       throw new Error("Invalid local projection configuration");

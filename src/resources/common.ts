@@ -8,6 +8,7 @@ export function segment(id: string): string {
 }
 export function artifactPath(path: string): string {
   if (
+    typeof path !== "string" ||
     !path ||
     path.startsWith("/") ||
     path.includes("\\") ||
@@ -32,7 +33,10 @@ export async function poll<T extends { status: string }>(
     const value = await get();
     if (terminal.has(value.status)) return value;
     const remaining = deadline - performance.now();
-    if (remaining <= 0) throw new ArgaError("Timed out waiting for run");
+    if (remaining <= 0)
+      throw new ArgaError(
+        `Timed out waiting for run after ${timeout}ms (last status: ${value.status})`,
+      );
     await new Promise((resolve) =>
       setTimeout(resolve, Math.min(interval, remaining)),
     );

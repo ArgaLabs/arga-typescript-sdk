@@ -244,6 +244,8 @@ export class Tracing {
     }
   }
   private async send(payload: string): Promise<boolean> {
+    // Retry exactly these immutable bytes. The backend locks the owner row and
+    // deduplicates by (owner, canonical evidence hash), including lost-ack retries.
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const response = await this.fetcher(

@@ -205,6 +205,7 @@ export class HttpClient {
     const url = this.buildUrl(path);
     const res = await this._fetch(url, {
       method: "GET",
+      signal: AbortSignal.timeout(this.timeout),
       headers: {
         ...this.headers(),
         Accept: "text/event-stream",
