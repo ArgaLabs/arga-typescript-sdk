@@ -157,6 +157,8 @@ export function projectTrace(
         : span.error;
     projector.record(operation, span.input ?? {}, span.output, error);
   }
+  // BTQL row order is not stable; coverage flags are a set, not event chronology.
+  projector.episode.issues.sort();
   return validateEpisode(projector.episode);
 }
 export interface BraintrustSyncOptions {

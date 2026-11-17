@@ -172,6 +172,20 @@ describe("Braintrust projection", () => {
     expect(episode.issues).toEqual([]);
   });
 });
+it("keeps coverage-issue order and evidence digest stable under shuffled BTQL rows", () => {
+  const spans = rows();
+  spans[1].metrics = {};
+  spans.push({
+    span_id: "unknown",
+    root_span_id: "root",
+    span_parents: ["root"],
+    span_attributes: { type: "tool", name: "unknown" },
+    metrics: { start: 8, end: 9 },
+  });
+  expect(projectTrace(spans, base)).toEqual(
+    projectTrace([...spans].reverse(), base),
+  );
+});
 describe("durable customer-run sync", () => {
   it("uses complete-trace reads, persists 0600 state, and suppresses replay", async () => {
     const state = await checkpoint(),

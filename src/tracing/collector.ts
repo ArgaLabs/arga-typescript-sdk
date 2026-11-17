@@ -74,7 +74,7 @@ export class Tracing {
       !Number.isInteger(this.capacity) ||
       this.capacity < 1 ||
       this.capacity > 1000 ||
-      !Number.isFinite(this.timeout) ||
+      !Number.isInteger(this.timeout) ||
       this.timeout <= 0 ||
       this.timeout > 60000
     )

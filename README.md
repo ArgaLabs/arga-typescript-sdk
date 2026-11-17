@@ -1,6 +1,6 @@
 # Arga TypeScript SDK
 
-Node.js 18+ client for Arga, with current backend APIs, customer-side Gmail/Stripe tracing, Braintrust sync and Training in **v0.2.0**. ESM and CommonJS are supported. Tracing is included in the normal install; collection starts only when you configure it.
+Node.js 18.3+ client for Arga, with current backend APIs, customer-side Gmail/Stripe tracing, Braintrust sync and Training in **v0.2.0**. ESM and CommonJS are supported. Tracing is included in the normal install; collection starts only when you configure it.
 
 ```bash
 npm install arga-sdk@^0.2.0
