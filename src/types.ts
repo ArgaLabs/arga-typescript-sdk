@@ -312,7 +312,36 @@ export interface TwinProvisionStatus {
    */
   isPublic?: boolean;
   error?: string;
-  failureDetail?: string | null;
+  failureCategory?: string | null;
+  failureDetail?: TwinProvisionFailure | null;
+  progress?: TwinProvisionProgress | null;
+  seedResults?: Record<string, unknown> | null;
+  githubActionsMode?: "simulated" | "execute";
+  accessProfile?: "full" | "candidate_api_only";
+}
+
+export interface TwinProvisionFailure {
+  phase: string;
+  kind: string;
+  code: string;
+  publicMessage: string;
+  retryable: boolean;
+  [key: string]: unknown;
+}
+export interface TwinProvisionProgress {
+  stage: string;
+  timeoutSeconds: number;
+  stageStartedAt?: string | null;
+  elapsedSeconds?: number | null;
+  stageElapsedSeconds?: number | null;
+  stalled?: boolean;
+  [key: string]: unknown;
+}
+export interface ScenarioPermissions {
+  canEdit: boolean;
+  canDelete: boolean;
+  canClone: boolean;
+  canCreateEnvironment: boolean;
 }
 
 export interface ExtendTwinsParams {
@@ -370,10 +399,10 @@ export interface Scenario {
   createdAt?: string;
   updatedAt?: string;
   scope?: "personal" | "workspace";
-  canEdit?: boolean;
-  canDelete?: boolean;
-  canClone?: boolean;
-  canCreateEnvironment?: boolean;
+  workspaceId?: string | null;
+  createdByUserId?: string | null;
+  isPreset?: boolean;
+  permissions?: ScenarioPermissions;
 }
 
 export interface EnsureScenarioTwinEnvironmentParams {
@@ -391,6 +420,7 @@ export interface ScenarioTwinEnvironment {
   dashboardUrl?: string;
   proxyToken?: string;
   public: boolean;
+  githubActionsMode?: "simulated" | "execute";
   error?: string;
   seedResults?: Record<string, unknown>;
   lastSeededAt?: string;

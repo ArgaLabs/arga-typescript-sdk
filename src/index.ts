@@ -1,4 +1,9 @@
 export { Arga } from "./client.js";
+export type {
+  TwinProvisionFailure,
+  TwinProvisionProgress,
+  ScenarioPermissions,
+} from "./types.js";
 export { TrainingResource, Secret } from "./training.js";
 export type { EvidenceUploadKey } from "./training.js";
 export { Tracing, CapturePolicy, initTracing } from "./tracing/index.js";
