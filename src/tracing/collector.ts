@@ -220,17 +220,22 @@ export class Tracing {
       this.queue.push(encoded);
       this.stats.queued++;
       // Scheduled after the agent call; queue contains projected, immutable JSON only.
-      if (!this.working)
-        this.working = Promise.resolve()
-          .then(() => this.drain())
-          .finally(() => {
-            this.working = undefined;
-          });
+      this.startWorker();
       return true;
     } catch {
       this.stats.dropped++;
       return false;
     }
+  }
+  private startWorker(): void {
+    if (this.working) return;
+    this.working = Promise.resolve()
+      .then(() => this.drain())
+      .finally(() => {
+        this.working = undefined;
+        // A submission may arrive between drain's return and this continuation.
+        if (this.queue.length) this.startWorker();
+      });
   }
   private async drain(): Promise<void> {
     while (this.queue.length) {
@@ -282,18 +287,25 @@ export class Tracing {
   async flush(timeout = 5000): Promise<boolean> {
     if (!Number.isFinite(timeout) || timeout <= 0)
       throw new Error("Invalid flush timeout");
-    if (!this.working) return true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return await Promise.race([
-        this.working.then(() => true),
-        new Promise<boolean>((resolve) => {
-          timer = setTimeout(() => resolve(false), timeout);
-        }),
-      ]);
-    } finally {
-      if (timer) clearTimeout(timer);
+    const deadline = performance.now() + timeout;
+    while (this.queue.length || this.working) {
+      this.startWorker();
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) return false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const drained = await Promise.race([
+          this.working!.then(() => true),
+          new Promise<boolean>((resolve) => {
+            timer = setTimeout(() => resolve(false), remaining);
+          }),
+        ]);
+        if (!drained) return false;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     }
+    return true;
   }
   async close(timeout = 5000): Promise<boolean> {
     this.closed = true;

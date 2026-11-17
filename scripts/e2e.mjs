@@ -492,8 +492,20 @@ async function sync() {
     policies: [POLICY],
     fetch: fetcher,
   };
-  const until = new Date(Date.now() + 1000),
+  const until = new Date(Date.now() + 1000);
+  let first = await new BraintrustSync(options).syncOnce({ until });
+  // Braintrust's query index can lag an acknowledged writer flush.
+  for (
+    let retry = 0;
+    retry < 10 &&
+    first.uploaded === 0 &&
+    first.pending === 0 &&
+    first.unchanged === 0;
+    retry++
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     first = await new BraintrustSync(options).syncOnce({ until });
+  }
   assert.equal(first.uploaded, 1);
   assert.equal(first.pending, 0);
   assert.equal(first.coverageGaps, 0);
@@ -713,7 +725,11 @@ try {
   else if (phase === "cleanup") await cleanup();
   else throw new Error("Unknown phase");
 } catch (error) {
-  await writeFile(statePath + ".error.txt", String(error.stack) + "\n" + String(error.cause?.stack), {mode:0o600});
+  await writeFile(
+    statePath + ".error.txt",
+    String(error.stack) + "\n" + String(error.cause?.stack),
+    { mode: 0o600 },
+  );
   console.error(
     JSON.stringify({
       phase,

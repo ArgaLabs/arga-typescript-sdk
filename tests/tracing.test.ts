@@ -439,6 +439,27 @@ describe("bounded export", () => {
     expect(t.diagnostics()).toMatchObject({ failed: 1, uploaded: 0 });
     expect(fetch).toHaveBeenCalledOnce();
   });
+  it("drains episodes submitted across exporter completion microtasks", async () => {
+    const fetch = vi.fn(async () => Response.json({ id }));
+    const t = tracing({
+      upload: true,
+      apiKey: "TRACE_SECRET",
+      queueSize: 1000,
+      fetch,
+    });
+    for (let i = 0; i < 100; i++) {
+      t.episode({ goal: "Task" }, () => {});
+      for (let turn = 0; turn < i % 11; turn++) await Promise.resolve();
+    }
+    expect(await t.flush(5000)).toBe(true);
+    expect(t.diagnostics()).toMatchObject({
+      queued: 100,
+      uploaded: 100,
+      dropped: 0,
+      failed: 0,
+    });
+    await t.close();
+  });
   it("rejects nonlocal HTTP and hides explicitly accessed credentials", () => {
     expect(() => tracing({ baseUrl: "http://remote.test" })).toThrow();
     const secret = new Secret("NEVER_PRINT_ME");
