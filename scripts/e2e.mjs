@@ -498,10 +498,7 @@ async function sync() {
   // Braintrust's query index can lag an acknowledged writer flush.
   for (
     let retry = 0;
-    retry < 10 &&
-    first.uploaded === 0 &&
-    first.pending === 0 &&
-    first.unchanged === 0;
+    retry < 10 && first.uploaded === 0 && first.unchanged === 0;
     retry++
   ) {
     await new Promise((resolve) => setTimeout(resolve, 3000));

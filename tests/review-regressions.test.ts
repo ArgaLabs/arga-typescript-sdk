@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -160,4 +160,31 @@ it("rejects a non-string policy revision in the programmatic API", () => {
   expect(
     () => new CapturePolicy({ revision: ["1"] as unknown as string }),
   ).toThrow();
+});
+
+it.each([
+  '{"password":"CREDENTIAL_CANARY"}',
+  "'api_key': 'CREDENTIAL_CANARY with spaces'",
+  '{"access_token": "CREDENTIAL_CANARY"}',
+  "arga_trace_CREDENTIAL_CANARY",
+])("masks credentials in selected text: %s", (input) => {
+  const t = new Tracing({
+    source: "test",
+    upload: false,
+    policy: new CapturePolicy({ textFields: ["goal"] }),
+  });
+  t.episode({ goal: input }, () => {});
+  expect(JSON.stringify(t.lastEpisode)).not.toContain("CREDENTIAL_CANARY");
+});
+it("preserves the provider call when instrumentation startup throws", async () => {
+  const t = new Tracing({ source: "test", upload: false }),
+    result = { id: "cus_test" },
+    retrieve = vi.fn(async () => result),
+    wrapped = t.wrapStripe({ customers: { retrieve } });
+  vi.spyOn(t, "start").mockImplementation(() => {
+    throw new Error("observer bug");
+  });
+  expect(await t.episode({}, () => wrapped.customers.retrieve())).toBe(result);
+  expect(retrieve).toHaveBeenCalledOnce();
+  expect(t.lastEpisode?.issues).toContain("projection_failed");
 });

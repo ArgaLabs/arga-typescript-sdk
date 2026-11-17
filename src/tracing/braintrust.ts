@@ -20,6 +20,7 @@ export class SyncError extends Error {
     this.name = "SyncError";
   }
 }
+class QueryLimitError extends SyncError {}
 export interface TraceProjectionOptions {
   source: string;
   projectId: string;
@@ -372,7 +373,7 @@ export class BraintrustSync {
             totalBytes += next.value.length;
             if (totalBytes > 2000000) {
               await reader.cancel();
-              throw new SyncError(
+              throw new QueryLimitError(
                 "Braintrust response exceeds the local limit; reduce the window",
               );
             }
@@ -391,7 +392,7 @@ export class BraintrustSync {
           throw new SyncError("Invalid Braintrust response");
         rows.push(...data);
         if (rows.length > 1000)
-          throw new SyncError(
+          throw new QueryLimitError(
             "Braintrust selection exceeds the local limit; reduce the window",
           );
         cursor =
@@ -536,9 +537,17 @@ export class BraintrustSync {
         if (typeof traceId !== "string" || !traceId || !validDate(root.created))
           throw new SyncError("Invalid Braintrust root record");
         const created = new Date(root.created).toISOString();
-        const rows = await this.query(
-          `SELECT span_id, root_span_id, span_parents, span_attributes, input, output, error, metrics FROM project_logs(${literal(this.projectId)}) WHERE root_span_id = ${literal(traceId)}`,
-        );
+        let rows: BraintrustRow[];
+        try {
+          rows = await this.query(
+            `SELECT span_id, root_span_id, span_parents, span_attributes, input, output, error, metrics FROM project_logs(${literal(this.projectId)}) WHERE root_span_id = ${literal(traceId)}`,
+          );
+        } catch (error) {
+          if (!(error instanceof QueryLimitError)) throw error;
+          pend(traceId, created);
+          counters.coverageGaps++;
+          continue;
+        }
         const rootSpans = rows.filter(
           (row) =>
             !row.span_parents ||

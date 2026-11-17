@@ -357,6 +357,37 @@ describe("durable customer-run sync", () => {
     expect(requests[1].init?.headers).toBeUndefined();
     expect(requests[1].init?.body).toBeUndefined();
   });
+  it("retains an oversized trace while processing healthy roots", async () => {
+    const state = await checkpoint();
+    const fetch = (async (url, init) => {
+      if (!String(url).includes("braintrust.dev"))
+        return Response.json({ id: datasetId }, { status: 201 });
+      const query = JSON.parse(String(init?.body)).query;
+      if (query.includes("is_root = true"))
+        return Response.json({
+          data: ["large", "healthy"].map((root_span_id) => ({
+            root_span_id,
+            created: new Date(1000).toISOString(),
+          })),
+        });
+      return Response.json({
+        data: query.includes("'large'")
+          ? Array.from({ length: 1001 }, () => ({}))
+          : rows("healthy"),
+      });
+    }) as typeof globalThis.fetch;
+    expect(
+      await worker(state, fetch).syncOnce({ until: new Date(120000) }),
+    ).toMatchObject({
+      uploaded: 1,
+      pending: 1,
+      coverageGaps: 1,
+      caughtUp: true,
+    });
+    expect(JSON.parse(await readFile(state, "utf8")).watermark).toBe(
+      new Date(120000).toISOString(),
+    );
+  });
   it("uses EU only for Braintrust and preserves region/destination separation", async () => {
     const state = await checkpoint(),
       urls: string[] = [];

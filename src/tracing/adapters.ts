@@ -1,4 +1,4 @@
-import type { Tracing } from "./collector.js";
+import type { Tracing, EpisodeContext } from "./collector.js";
 import type { Operation, Provider, Resource, Verb } from "./models.js";
 import { value } from "./projection.js";
 
@@ -123,7 +123,16 @@ export function wrapProvider<T extends object>(
             : `gmail.${next.filter((part) => part !== "users").join(".")}`;
       const operation = operationFor(canonical);
       const wrapped = (...args: unknown[]) => {
-        const current = tracing.start(operation);
+        let current: EpisodeContext | undefined;
+        try {
+          current = tracing.start(operation);
+        } catch {
+          try {
+            tracing.current()?.projector.issue("projection_failed");
+          } catch {
+            /* Collection must not fail the provider call. */
+          }
+        }
         let facts: Record<string, unknown> = {};
         try {
           facts = parameters(provider, args);
