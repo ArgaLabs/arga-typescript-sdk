@@ -330,8 +330,12 @@ describe("durable customer-run sync", () => {
     const tooLarge = (async () =>
       new Response("x".repeat(2000001))) as typeof globalThis.fetch;
     await expect(worker(state, tooLarge).syncOnce()).rejects.toThrow("exceeds");
-    await writeFile(state, "{}");
-    await expect(worker(state, fetch).syncOnce()).rejects.toThrow();
+    const corrupt = JSON.parse(await readFile(state, "utf8"));
+    corrupt.alias_key = "not-hex";
+    await writeFile(state, JSON.stringify(corrupt));
+    await expect(worker(state, fetch).syncOnce()).rejects.toThrow(
+      "Invalid local checkpoint",
+    );
   });
   it("reads signed storage redirects without forwarding API credentials or query bodies", async () => {
     const state = await checkpoint();

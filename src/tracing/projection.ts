@@ -334,14 +334,32 @@ export class Projector {
       }
     }
     if (this.options.policy.textFields.includes("gmail.body")) {
-      const nested = value(payload, "parts", []);
-      const parts = [payload, ...(Array.isArray(nested) ? nested : [])].slice(
-          0,
-          20,
-        ),
+      const parts: unknown[] = [],
+        pending: unknown[] = [payload],
         texts: string[] = [];
+      while (pending.length && parts.length < 20) {
+        const part = pending.shift();
+        parts.push(part);
+        if (value(part, "filename")) continue;
+        const mime = value(part, "mimeType"),
+          children = value(part, "parts");
+        if (
+          typeof mime === "string" &&
+          mime.startsWith("multipart/") &&
+          Array.isArray(children)
+        ) {
+          if (children.length + pending.length + parts.length > 20)
+            this.issue("payload_limit");
+          pending.push(...children.slice(0, Math.max(0, 20 - pending.length)));
+        }
+      }
+      if (pending.length) this.issue("payload_limit");
       for (const part of parts) {
-        if (value(part, "mimeType") !== "text/plain" || value(part, "filename"))
+        if (
+          value(part, "mimeType") !== "text/plain" ||
+          value(part, "filename") ||
+          value(value(part, "body"), "attachmentId")
+        )
           continue;
         const data = value(value(part, "body", {}), "data");
         if (typeof data !== "string") continue;
@@ -353,9 +371,15 @@ export class Projector {
           this.issue("projection_failed");
           continue;
         }
-        const decoded = new TextDecoder("utf-8", { fatal: true }).decode(
-          Buffer.from(data, "base64url"),
-        );
+        let decoded: string;
+        try {
+          decoded = new TextDecoder("utf-8", { fatal: true }).decode(
+            Buffer.from(data, "base64url"),
+          );
+        } catch {
+          this.issue("projection_failed");
+          continue;
+        }
         const text = this.text("gmail.body", decoded);
         if (text) texts.push(text);
       }

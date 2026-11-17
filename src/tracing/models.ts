@@ -33,6 +33,28 @@ export type Issue =
   | "agent_error";
 export type Provider = "gmail" | "stripe";
 export type Operation = readonly [Provider, Resource, Verb];
+export const SUPPORTED_OPERATIONS = new Set([
+  ...["customers", "payment_intents", "charges", "refunds"].flatMap(
+    (resource) =>
+      ["retrieve", "list", "search", "create", "update", "delete"].map(
+        (verb) => `stripe.${resource}.${verb}`,
+      ),
+  ),
+  ...["messages", "drafts"].flatMap((resource) =>
+    [
+      "get",
+      "list",
+      "create",
+      "update",
+      "delete",
+      "send",
+      "modify",
+      "trash",
+      "untrash",
+    ].map((verb) => `gmail.${resource}.${verb}`),
+  ),
+  "gmail.profile.get",
+]);
 export interface EvidenceParameters {
   id?: string;
   customer?: string;
@@ -146,6 +168,20 @@ export function validateEpisode(episode: unknown): Episode {
   if (!validate!(value)) throw new Error("Invalid evidence contract");
   if (value.events.some((event, i) => event.sequence !== i + 1))
     throw new Error("Events must have contiguous sequence numbers");
+  for (const event of value.events) {
+    const scope = ["list", "search"].includes(event.verb)
+      ? "result_page"
+      : ["get", "retrieve"].includes(event.verb)
+        ? "resource"
+        : "mutation";
+    if (
+      !SUPPORTED_OPERATIONS.has(
+        `${event.provider}.${event.resource}.${event.verb}`,
+      ) ||
+      event.scope !== scope
+    )
+      throw new Error("Unsupported evidence operation or scope");
+  }
   if (Buffer.byteLength(JSON.stringify(value)) > MAX_EVIDENCE_BYTES)
     throw new Error("Evidence exceeds the upload limit");
   return value;

@@ -102,15 +102,32 @@ export class HttpClient {
     this.apiKey = opts.apiKey;
     this._fetch = opts.fetch;
     this.timeout = opts.timeout ?? 300_000;
-    if (!Number.isFinite(this.timeout) || this.timeout <= 0)
+    if (
+      !Number.isInteger(this.timeout) ||
+      this.timeout <= 0 ||
+      this.timeout > 2147483647
+    )
       throw new ArgaError("Invalid request timeout");
+  }
+
+  private async performFetch(
+    url: string,
+    init: RequestInit,
+  ): Promise<Response> {
+    try {
+      return await this._fetch(url, init);
+    } catch (error) {
+      if (error instanceof Error && error.name === "TimeoutError")
+        throw new ArgaError(`Arga request timed out after ${this.timeout}ms`);
+      throw error;
+    }
   }
 
   // ---- public helpers -----------------------------------------------------
 
   async get<T>(path: string, query?: Record<string, string>): Promise<T> {
     const url = this.buildUrl(path, query);
-    const res = await this._fetch(url, {
+    const res = await this.performFetch(url, {
       method: "GET",
       headers: this.headers(),
       signal: AbortSignal.timeout(this.timeout),
@@ -121,7 +138,7 @@ export class HttpClient {
 
   async post<T>(path: string, body?: unknown): Promise<T> {
     const url = this.buildUrl(path);
-    const res = await this._fetch(url, {
+    const res = await this.performFetch(url, {
       method: "POST",
       headers: this.headers(),
       body:
@@ -134,7 +151,7 @@ export class HttpClient {
 
   async delete<T>(path: string): Promise<T> {
     const url = this.buildUrl(path);
-    const res = await this._fetch(url, {
+    const res = await this.performFetch(url, {
       method: "DELETE",
       headers: this.headers(),
       signal: AbortSignal.timeout(this.timeout),
@@ -155,7 +172,7 @@ export class HttpClient {
     body: unknown,
   ): Promise<T> {
     return this.handleResponse<T>(
-      await this._fetch(this.buildUrl(path), {
+      await this.performFetch(this.buildUrl(path), {
         method,
         headers: this.headers(),
         body: JSON.stringify(toSnakeCaseKeys(body)),
@@ -167,7 +184,7 @@ export class HttpClient {
   /** Raw evidence has its own strict snake_case contract. Never transform its keys. */
   async postEvidence<T>(payload: unknown): Promise<T> {
     return this.handleResponse<T>(
-      await this._fetch(this.buildUrl("/datasets/evidence"), {
+      await this.performFetch(this.buildUrl("/datasets/evidence"), {
         method: "POST",
         headers: this.headers(),
         body: JSON.stringify(payload),
@@ -177,7 +194,7 @@ export class HttpClient {
     );
   }
   async getText(path: string): Promise<string> {
-    const res = await this._fetch(this.buildUrl(path), {
+    const res = await this.performFetch(this.buildUrl(path), {
       headers: this.headers(),
       signal: AbortSignal.timeout(this.timeout),
       redirect: "error",
@@ -186,14 +203,14 @@ export class HttpClient {
     return res.text();
   }
   async getRedirect(path: string): Promise<string> {
-    const res = await this._fetch(this.buildUrl(path), {
+    const res = await this.performFetch(this.buildUrl(path), {
       headers: this.headers(),
       signal: AbortSignal.timeout(this.timeout),
       redirect: "manual",
     });
     const location = res.headers.get("location");
     if ([301, 302, 303, 307, 308].includes(res.status) && location)
-      return new URL(location, this.baseUrl).toString();
+      return new URL(location, this.buildUrl(path)).toString();
     if (!res.ok) await this.throwApiError(res);
     throw new ArgaError("Artifact response did not include a redirect");
   }
@@ -203,7 +220,7 @@ export class HttpClient {
    */
   async getRaw(path: string): Promise<Response> {
     const url = this.buildUrl(path);
-    const res = await this._fetch(url, {
+    const res = await this.performFetch(url, {
       method: "GET",
       signal: AbortSignal.timeout(this.timeout),
       headers: {

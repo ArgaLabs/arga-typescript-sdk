@@ -543,6 +543,10 @@ async function sync() {
 }
 async function generate(source) {
   const data = state[source];
+  if (data.task) {
+    log({ source, taskId: data.task.id, alreadyGenerated: true });
+    return;
+  }
   data.task = await arga.training.generateTask(data.datasetId, {
     traceId: data.traceId,
   });
@@ -700,10 +704,16 @@ async function coverageGate() {
 }
 async function cleanup() {
   if (state.runId) {
-    const status = await arga.twinRuns.get(state.runId);
-    if (!["torn_down", "expired", "failed"].includes(status.status))
+    let status = await arga.twinRuns.get(state.runId);
+    if (status.status !== "torn_down")
       await arga.twinRuns.teardown(state.runId);
-    log({ status: (await arga.twinRuns.get(state.runId)).status });
+    const deadline = Date.now() + 120000;
+    while (status.status !== "torn_down" && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      status = await arga.twinRuns.get(state.runId);
+    }
+    assert.equal(status.status, "torn_down");
+    log({ status: status.status });
   }
   if (state.scenarioId && !state.scenarioDeleted) {
     await arga.scenarios.delete(state.scenarioId);

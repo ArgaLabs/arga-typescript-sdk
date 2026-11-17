@@ -155,6 +155,7 @@ export class Tracing {
   ): (...args: Args) => Result {
     const tracing = this;
     return function (this: unknown, ...args: Args) {
+      if (tracing.closed) return fn.apply(this, args);
       let goal: string | undefined;
       try {
         goal = options.goal?.(...args);

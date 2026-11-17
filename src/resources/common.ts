@@ -21,6 +21,7 @@ export async function poll<T extends { status: string }>(
   get: () => Promise<T>,
   terminal: Set<string>,
   options: WaitOptions = {},
+  label = "run",
 ): Promise<T> {
   const interval = options.pollInterval ?? 2500,
     timeout = options.timeout ?? 600000;
@@ -35,7 +36,7 @@ export async function poll<T extends { status: string }>(
     const remaining = deadline - performance.now();
     if (remaining <= 0)
       throw new ArgaError(
-        `Timed out waiting for run after ${timeout}ms (last status: ${value.status})`,
+        `Timed out waiting for ${label} after ${timeout}ms (last status: ${value.status})`,
       );
     await new Promise((resolve) =>
       setTimeout(resolve, Math.min(interval, remaining)),

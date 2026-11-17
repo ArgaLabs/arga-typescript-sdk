@@ -2,44 +2,11 @@ import type { Tracing, EpisodeContext } from "./collector.js";
 import type { Operation, Provider, Resource, Verb } from "./models.js";
 import { value } from "./projection.js";
 
-const STRIPE_RESOURCES = new Set([
-  "customers",
-  "payment_intents",
-  "charges",
-  "refunds",
-]);
-const STRIPE_VERBS = new Set([
-  "retrieve",
-  "list",
-  "search",
-  "create",
-  "update",
-  "delete",
-]);
-const GMAIL_VERBS = new Set([
-  "get",
-  "list",
-  "create",
-  "update",
-  "delete",
-  "send",
-  "modify",
-  "trash",
-  "untrash",
-]);
+import { SUPPORTED_OPERATIONS } from "./models.js";
 export function operationFor(path: string): Operation | undefined {
-  const [provider, resource, verb, ...rest] = path.split(".");
-  if (rest.length) return;
-  if (
-    (provider === "stripe" &&
-      STRIPE_RESOURCES.has(resource) &&
-      STRIPE_VERBS.has(verb)) ||
-    (provider === "gmail" &&
-      ((["messages", "drafts"].includes(resource) && GMAIL_VERBS.has(verb)) ||
-        (resource === "profile" && verb === "get")))
-  ) {
-    return [provider as Provider, resource as Resource, verb as Verb];
-  }
+  return SUPPORTED_OPERATIONS.has(path)
+    ? (path.split(".") as unknown as Operation)
+    : undefined;
 }
 function parameters(
   provider: Provider,

@@ -41,6 +41,7 @@ describe("official provider clients", () => {
         policy: new CapturePolicy({ textFields: ["goal"] }),
       }),
       wrapped = tracing.wrapGmail(original);
+    Object.freeze(original);
     expect(
       Object.getOwnPropertyDescriptor(original, "users")?.configurable,
     ).toBe(false);

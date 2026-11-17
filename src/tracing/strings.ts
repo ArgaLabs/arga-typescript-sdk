@@ -22,13 +22,25 @@ export function replaceEmails(
     if (at < 0) break;
     let start = at,
       end = at + 1;
-    while (start > copied && LOCAL.has(text[start - 1])) start--;
-    while (end < text.length && DOMAIN.has(text[end])) end++;
+    const local = (char: string) =>
+      LOCAL.has(char) || (char.charCodeAt(0) >= 128 && !/\s/u.test(char));
+    const domainChar = (char: string) =>
+      DOMAIN.has(char) ||
+      char === "@" ||
+      (char.charCodeAt(0) >= 128 && !/\s/u.test(char));
+    while (start > copied && local(text[start - 1])) start--;
+    // An ambiguous token with multiple @ signs is masked as a whole rather than
+    // leaving a suffix of an adjacent address in selected text.
+    while (end < text.length && domainChar(text[end])) end++;
     // Trim sentence punctuation; require a plausible domain suffix.
     while (end > at + 1 && text[end - 1] === ".") end--;
-    const domain = text.slice(at + 1, end),
+    const domain = text.slice(text.lastIndexOf("@", end - 1) + 1, end),
       dot = domain.lastIndexOf(".");
-    if (start < at && dot > 0 && /^[A-Za-z]{2}/.test(domain.slice(dot + 1))) {
+    if (
+      start < at &&
+      dot > 0 &&
+      /^(?:[\p{L}\p{M}]{2}|[^\x00-\x7F])/u.test(domain.slice(dot + 1))
+    ) {
       chunks.push(text.slice(copied, start), replace(text.slice(start, end)));
       copied = end;
     }

@@ -48,7 +48,12 @@ For customer-specific text filters use the programmatic BraintrustSync API.`);
     throw new SyncError("Use a poll interval between 1 and 3600 seconds");
   if ((await stat(values.policy)).size > 64000)
     throw new SyncError("Policy exceeds its local limit");
-  const config = JSON.parse(await readFile(values.policy, "utf8"));
+  let config;
+  try {
+    config = JSON.parse(await readFile(values.policy, "utf8"));
+  } catch {
+    throw new SyncError("Invalid local policy JSON");
+  }
   const allowed = new Set([
     "text_fields",
     "revision",

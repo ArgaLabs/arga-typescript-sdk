@@ -1,4 +1,5 @@
 import type { HttpClient } from "../http.js";
+import { ArgaError } from "../errors.js";
 import type {
   CreateSavedTestParams,
   SavedTest,
@@ -14,6 +15,8 @@ export class TestsResource {
     return this.http.post("/tests", params);
   }
   async list(params: { repoFullName?: string } = {}): Promise<SavedTest[]> {
+    if (params.repoFullName !== undefined && !params.repoFullName.trim())
+      throw new ArgaError("repoFullName must not be empty");
     return (
       await this.http.get<{ tests: SavedTest[] }>(
         "/tests",

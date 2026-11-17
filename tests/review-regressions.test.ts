@@ -4,6 +4,7 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  Projector,
   Tracing,
   validateEpisode,
   CapturePolicy,
@@ -187,4 +188,51 @@ it("preserves the provider call when instrumentation startup throws", async () =
   expect(await t.episode({}, () => wrapped.customers.retrieve())).toBe(result);
   expect(retrieve).toHaveBeenCalledOnce();
   expect(t.lastEpisode?.issues).toContain("projection_failed");
+});
+
+it("continues traced agent work after the collector has closed", async () => {
+  const tracing = new Tracing({ source: "test", upload: false }),
+    work = vi.fn(async () => 42),
+    agent = tracing.agent(work);
+  await tracing.close();
+  expect(await agent()).toBe(42);
+  expect(work).toHaveBeenCalledOnce();
+});
+it("reads bounded nested MIME while retaining other fields after invalid UTF-8", () => {
+  const t = new Tracing({
+    source: "test",
+    upload: false,
+    policy: new CapturePolicy({ textFields: ["gmail.body"] }),
+  });
+  const raw = {
+    id: "message",
+    threadId: "thread",
+    payload: {
+      mimeType: "multipart/mixed",
+      parts: [
+        {
+          mimeType: "multipart/alternative",
+          parts: [
+            {
+              mimeType: "text/plain",
+              body: { data: Buffer.from("Nested body").toString("base64url") },
+            },
+            {
+              mimeType: "text/plain",
+              body: { data: Buffer.from([255]).toString("base64url") },
+            },
+          ],
+        },
+      ],
+    },
+  };
+  const p = new Projector({
+    source: "test",
+    episodeKey: "one",
+    aliasKey: Buffer.alloc(32),
+    policy: new CapturePolicy({ textFields: ["gmail.body"] }),
+  });
+  p.record(["gmail", "messages", "get"], {}, raw);
+  expect(p.episode.events[0].records[0].body).toBe("Nested body");
+  expect(p.episode.issues).toContain("projection_failed");
 });

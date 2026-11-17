@@ -23,3 +23,13 @@ it("handles repeated email-like delimiters in linear bounded work", () => {
     "https://api.test",
   );
 });
+
+it("masks internationalized and ambiguous adjacent addresses completely", () => {
+  for (const address of [
+    "客户@例子.公司",
+    "jóse@éxample.test",
+    "a@b.comjane@c.org",
+  ]) {
+    expect(replaceEmails(address, () => "[person]")).toBe("[person]");
+  }
+});

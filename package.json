@@ -36,7 +36,8 @@
     "examples:check": "tsc --noEmit -p tsconfig.examples.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "package:check": "node scripts/package-smoke.mjs"
+    "package:check": "node scripts/package-smoke.mjs",
+    "format": "prettier --write src tests scripts .github \"*.json\" README.md"
   },
   "keywords": [
     "arga",
@@ -51,14 +52,14 @@
     "url": "https://github.com/ArgaLabs/arga-typescript-sdk.git"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=18.3.0"
   },
   "devDependencies": {
-    "@googleapis/gmail": "^22.1.0",
+    "@googleapis/gmail": "^18.0.0",
     "@types/node": "^25.5.2",
     "braintrust": "^3.44.0",
     "prettier": "^3.10.1",
-    "stripe": "^23.1.0",
+    "stripe": "^22.6.2",
     "tsup": "^8.4.0",
     "tsx": "^4.21.0",
     "typescript": "^5.7.0",

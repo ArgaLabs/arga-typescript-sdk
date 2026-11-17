@@ -1,6 +1,6 @@
 import type { HttpClient } from "../http.js";
 import { parseSSE, toCamelCaseKeys } from "../http.js";
-import { ArgaError } from "../errors.js";
+import { poll } from "./common.js";
 import type {
   CancelRunResponse,
   CreateAgentRunParams,
@@ -85,21 +85,6 @@ export class RunsResource {
    * @throws ArgaError if the timeout is exceeded.
    */
   async wait(runId: string, opts?: WaitOptions): Promise<RunDetail> {
-    const pollInterval = opts?.pollInterval ?? 2500;
-    const timeout = opts?.timeout ?? 600_000;
-    const deadline = Date.now() + timeout;
-
-    while (true) {
-      const detail = await this.get(runId);
-      if (TERMINAL_STATUSES.has(detail.status)) {
-        return detail;
-      }
-      if (Date.now() + pollInterval > deadline) {
-        throw new ArgaError(
-          `Timed out waiting for run ${runId} after ${timeout}ms (last status: ${detail.status})`,
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
-    }
+    return poll(() => this.get(runId), TERMINAL_STATUSES, opts, `run ${runId}`);
   }
 }
