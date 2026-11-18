@@ -1,4 +1,52 @@
 export { Arga } from "./client.js";
+export { EpisodeContext } from "./tracing/collector.js";
+export { Projector } from "./tracing/projection.js";
+export { validateEpisode, blockers, evidenceSchema } from "./tracing/models.js";
+export type { TracingOptions, EpisodeOptions } from "./tracing/collector.js";
+export type { CapturePolicyOptions } from "./tracing/projection.js";
+export type {
+  BraintrustSyncOptions,
+  TraceProjectionOptions,
+  SyncCounters,
+  BraintrustRow,
+} from "./tracing/braintrust.js";
+export type {
+  TwinProvisionFailure,
+  TwinProvisionProgress,
+  ScenarioPermissions,
+} from "./types.js";
+export { TrainingResource, Secret } from "./training.js";
+export type { EvidenceUploadKey } from "./training.js";
+export { Tracing, CapturePolicy, initTracing } from "./tracing/index.js";
+export {
+  BraintrustSync,
+  SyncError,
+  projectTrace,
+} from "./tracing/braintrust.js";
+export type {
+  CreateTwinRunParams,
+  CreateTestRunParams,
+  TestRunOverrides,
+  TestRun,
+  CreateSavedTestParams,
+  UpdateSavedTestParams,
+  SavedTestRunOverrides,
+  SavedTest,
+  UpdateScenarioParams,
+  TrainingDataset,
+  TrainingDatasetDetail,
+  TrainingTask,
+  EvidenceReceipt,
+  GraderArtifact,
+  GraderResult,
+} from "./types.js";
+export type {
+  Episode,
+  EvidenceEvent,
+  EvidenceRecord,
+  EvidenceParameters,
+  EvidenceError,
+} from "./tracing/models.js";
 
 export { ArgaError, ArgaAPIError } from "./errors.js";
 

@@ -89,7 +89,7 @@ describe("ScenariosResource", () => {
       expect(body.description).toBe("Tests the complete login flow");
       expect(body.prompt).toBe("Verify user can log in with valid credentials");
       expect(body.twins).toEqual(["stripe"]);
-      expect(body.seed_config).toEqual({ user_count: 10 });
+      expect(body.seed_config).toEqual({ userCount: 10 });
       expect(body.tags).toEqual(["auth", "critical"]);
       // camelCase should not be present in request
       expect(body.seedConfig).toBeUndefined();
@@ -97,7 +97,7 @@ describe("ScenariosResource", () => {
       // Response should be camelCase
       expect(result.id).toBe("scen_001");
       expect(result.name).toBe("Login Flow");
-      expect(result.seedConfig).toEqual({ userCount: 10 });
+      expect(result.seedConfig).toEqual({ user_count: 10 });
       expect(result.createdAt).toBe("2026-01-15T10:00:00Z");
       expect(result.updatedAt).toBe("2026-01-15T10:00:00Z");
     });
@@ -184,7 +184,7 @@ describe("ScenariosResource", () => {
       expect(result.id).toBe("scen_001");
       expect(result.name).toBe("Login Flow");
       expect(result.description).toBe("Tests the complete login flow");
-      expect(result.seedConfig).toEqual({ userCount: 5 });
+      expect(result.seedConfig).toEqual({ user_count: 5 });
       expect(result.createdAt).toBe("2026-01-15T10:00:00Z");
       expect(result.updatedAt).toBe("2026-01-16T12:00:00Z");
     });

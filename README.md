@@ -1,167 +1,117 @@
 # Arga TypeScript SDK
 
-TypeScript client for the [Arga](https://argalabs.com) API. Zero runtime dependencies -- uses native `fetch` (Node 18+).
-
-## Installation
+Node.js 18.3+ client for Arga, with current backend APIs, customer-side Gmail/Stripe tracing, Braintrust sync and Training in **v0.2.0**. ESM and CommonJS are supported. Tracing is included in the normal install; collection starts only when you configure it.
 
 ```bash
-npm install arga-sdk
+npm install arga-sdk@^0.2.0
 ```
 
-## Quick Start
+## Current APIs
 
 ```typescript
 import { Arga } from 'arga-sdk';
 
-const client = new Arga({ apiKey: 'arga_...' });
-
-// Create a URL run
-const run = await client.runs.createUrlRun({
-  url: 'https://staging.myapp.com',
-  twins: ['stripe', 'slack', 'salesforce', 'waterfall'],
-});
-console.log(run.runId, run.status);
-
-// Poll until the run completes
-const detail = await client.runs.wait(run.runId);
-console.log(detail.status, detail.resultsJson);
-
-// Stream results via SSE
-for await (const event of client.runs.streamResults(run.runId)) {
-  console.log(event);
-}
+const arga = new Arga({ apiKey: process.env.ARGA_API_KEY! });
+const run = await arga.twinRuns.create({ twins: ['gmail', 'stripe'] });
+const ready = await arga.twinRuns.wait(run.runId);
+console.log(ready.status);
 ```
 
-## Configuration
+The default origin is `https://api.argalabs.com`. Set `baseUrl` for another environment. Request timeouts default to 300,000 milliseconds. Treat provider `envVars`, proxy tokens and artifact URLs as secrets; do not print them.
+
+| Resource | Supported workflow |
+| --- | --- |
+| `twinRuns` | Create, inspect, wait, reset, extend, lock, tear down and Microsoft Scenario snapshot |
+| `twins` | Service catalog; older provisioning calls remain for compatibility |
+| `testRuns` | Create, list, inspect, wait, rerun, edit TestConfig, send messages and get artifact URLs |
+| `tests` | Create, list, inspect, edit, delete and run Saved Tests |
+| `scenarios` | Create, list, edit, delete, copy, presets and persistent environments |
+| `training` | Source-bound upload keys, evidence, task generation/edit/review, graders, environments and JSONL |
+
+Model properties use camelCase. Customer-owned JSON (`seedConfig`, `testConfig`, `testConfigJson`, `spec`, snapshots and provider `envVars`) retains its exact keys. This corrects older recursive key conversion that could change provider data. Legacy `runs` helpers remain available; new browser testing uses `testRuns` and `tests`.
+
+## Customer-side tracing
+
+Mint a source-bound upload key outside the agent using a full Arga credential:
 
 ```typescript
-const client = new Arga({
-  apiKey: 'arga_...', // required
-  baseUrl: 'https://app.argalabs.com', // optional, this is the default
-});
+const credential = await arga.training.createUploadKey({ source: 'support-agent' });
+const secret = credential.key.getSecretValue();
+// Store secret in your secret manager as ARGA_TRACE_KEY. Never print it.
 ```
 
-## Examples
+Wrap your application's existing provider clients and use an explicit episode:
 
-Runnable examples live in [`examples/`](examples/README.md). They are the best
-way to see realistic customer workflows end to end.
+```typescript
+import { Tracing, CapturePolicy } from 'arga-sdk/tracing';
 
-If you want to run the in-repo examples from a local checkout:
+const tracing = new Tracing({
+  source: 'support-agent',
+  policy: new CapturePolicy({
+    textFields: ['goal', 'policy'],
+    transformText: filterTrainingText, // Your synchronous customer-local filter.
+    revision: 'support-1',
+  }),
+});
+const stripe = tracing.wrapStripe(stripeClient);
+const gmail = tracing.wrapGmail(gmailClient);
+await tracing.episode({
+  goal: 'Resolve the duplicate payment while preserving the original.',
+  policies: ['Customer confirmations require owner review before sending.'],
+}, async () => {
+  // Await your existing agent code using stripe and gmail here.
+});
+await tracing.flush(10000);
+console.log(tracing.diagnostics(), tracing.recentUploads());
+await tracing.close();
+```
+
+Define `filterTrainingText` and supply your existing `stripeClient` and Gmail `gmailClient`. Adapters support the official Stripe client and Gmail clients from `googleapis` or `@googleapis/gmail`; provider libraries stay in your application's dependencies. Only executed wrapped calls are observed. No module patches, provider credential inspection or extra provider requests occur.
+
+Free text is excluded by default. Select `goal`, `policy`, `gmail.subject` and `gmail.body` explicitly as needed, and filter selected text locally. Built-in masking supplements your policy; it is not a complete personal-data filter. IDs and email addresses are aliased per episode. Source code, arbitrary metadata, system prompts/reasoning, raw MIME, attachments, HTML and snippets are excluded. Missing state is unknown. Overlapping mutations and detected unsupported operations block generation through coverage issues.
+
+Use `upload: false` to inspect `lastEpisode` locally. Export contains at most 100 events, 50 records/event and 100,000 bytes. The in-memory queue is bounded and attempts delivery at most three times. A drained queue does not prove delivery: inspect uploaded/failed/dropped counters. No disk spool is provided. Manual list-page iteration is supported; Stripe automatic pagination helpers retain their behavior but mark incomplete coverage.
+
+## Braintrust sync
+
+Run the worker on customer infrastructure. `BRAINTRUST_API_KEY` stays there; only projected evidence goes to Arga under `ARGA_TRACE_KEY`.
 
 ```bash
-npm install
-export ARGA_API_KEY=arga_your_api_key
+npx arga-braintrust-sync --project PROJECT_UUID --source support-agent \
+  --since 2026-11-17T00:00:00Z --state ./private/braintrust-ts.json \
+  --policy ./trace-policy.json --watch
 ```
 
-If you need a non-default environment, you can also set:
+Policy JSON accepts `text_fields`, `revision`, `goal_pointer`, `policies` and a tool-name-to-canonical-name `operations` map. Free text remains opt-in. Canonical executed tools use provider-shaped input/output; LLM suggestions and root output are excluded. For custom text filters, use `BraintrustSync` programmatically with `CapturePolicy`.
+
+The worker processes bounded windows with overlap, pagination, replay digests and pending roots. Checkpoints are atomic and mode 0600 on POSIX; they store aliases/references/digests, not raw spans or credentials. Locks are exclusive and never stolen automatically; after a crash verify the old process has stopped before removing its stale `.lock`. Python and TypeScript checkpoint formats are separate. No Braintrust writer SDK is needed for sync.
+
+## Training
+
+```typescript
+const dataset = await arga.training.get('DATASET_UUID');
+const task = await arga.training.generateTask(dataset.id, { traceId: dataset.traces[0].id });
+const bundle = await arga.training.getGrader(dataset.id, task.id);
+```
+
+Generated tasks remain drafts. Review starting state, scoring, provenance, assumptions and the compiled grader before acknowledging and approving the current revision. Verifiers are portable Python snapshot programs, also testable through `training.testGrader`. The SDK does not automatically collect verifier snapshots or run agents/model training. Missing required evidence blocks generation; selected evidence remains in existing private Training storage and is sent to the configured model provider when you request generation.
+
+## Validation
 
 ```bash
-export ARGA_BASE_URL=https://app.argalabs.com
+npm ci
+npm run typecheck
+npm run examples:check
+npm test
+npm run build
+npm audit --omit=dev
 ```
 
-Start with the staging validation example:
-
-```bash
-npx tsx examples/validate_staging_release.ts
-```
-
-Each example is a small workflow script with an editable config block near the
-top of the file. Open the file, adjust the business-specific values, then run
-it with `tsx`.
-
-Choose an example based on the customer job you want to model:
-
-- [`examples/validate_staging_release.ts`](examples/validate_staging_release.ts): validate staging before a release
-- [`examples/create_checkout_scenario.ts`](examples/create_checkout_scenario.ts): create a reusable checkout scenario
-- [`examples/ensure_scenario_twin_urls.ts`](examples/ensure_scenario_twin_urls.ts): ensure stable scenario twin URLs
-- [`examples/provision_checkout_twins.ts`](examples/provision_checkout_twins.ts): provision disposable integrations like Stripe or Salesforce
-- [`examples/explore_staging_with_agent.ts`](examples/explore_staging_with_agent.ts): let Arga explore staging autonomously
-
-See [`examples/README.md`](examples/README.md) for exact commands, required
-edits, and expected output for each example.
-
-## Available Methods
-
-### Runs
-
-| Method | Description |
-|--------|-------------|
-| `client.runs.createUrlRun(params)` | Create a URL validation run |
-| `client.runs.createPrRun(params)` | Create a PR validation run |
-| `client.runs.createAgentRun(params)` | Create an autonomous agent run for PR or branch exploration |
-| `client.runs.get(runId)` | Get full run details |
-| `client.runs.streamResults(runId)` | Stream run results as SSE events |
-| `client.runs.cancel(runId)` | Cancel a running run |
-| `client.runs.wait(runId, opts?)` | Poll until terminal status |
-
-### Twins
-
-| Method | Description |
-|--------|-------------|
-| `client.twins.list()` | List all available twins |
-| `client.twins.provision(params)` | Provision twins for a run |
-| `client.twins.getStatus(runId)` | Get twin provisioning status |
-| `client.twins.extend(runId, params?)` | Extend twin TTL |
-
-### Scenarios
-
-| Method | Description |
-|--------|-------------|
-| `client.scenarios.create(params)` | Create a new scenario |
-| `client.scenarios.list(params?)` | List scenarios (filter by twin or tag) |
-| `client.scenarios.get(scenarioId)` | Get a scenario by ID |
-| `client.scenarios.ensureTwinEnvironment(scenarioId, params?)` | Create or return permanent twin URLs for a scenario |
-| `client.scenarios.getTwinEnvironment(scenarioId)` | Get permanent twin environment status and URLs |
-| `client.scenarios.reseedTwinEnvironment(scenarioId)` | Reseed a permanent twin environment from the scenario |
-| `client.scenarios.deleteTwinEnvironment(scenarioId)` | Tear down a permanent twin environment |
-| `client.scenarios.listTwinEnvironments()` | List permanent scenario twin environments |
-
-## Scenario generation modes
-
-```typescript
-const scenario = await client.scenarios.create({
-  name: 'Support escalation',
-  prompt: 'A Slack support channel with linked escalation threads and consistent message authors',
-  generationMode: 'thorough',
-});
-```
-
-Fast is the default for everyday scenarios. Thorough handles complex requirements with a longer wait. Explicit `seedConfig` bypasses generation. Import the `ScenarioGenerationMode` type from `arga-sdk` for typed helpers.
-
-### Generate seed data from a prompt
-
-```typescript
-const { runId } = await client.twins.provision({
-  twins: ['slack'],
-  scenarioPrompt: 'A support channel with linked escalation threads and consistent message authors',
-  scenarioGenerationMode: 'thorough',
-});
-```
-
-Use `scenarioGenerationMode: 'fast'` for everyday scenarios, or omit it to use the server's Fast default. Thorough handles complex requirements with a longer wait. A `scenarioId` takes precedence and reuses saved seed data.
-
-## Error Handling
-
-```typescript
-import { ArgaAPIError, ArgaError } from 'arga-sdk';
-
-try {
-  await client.runs.get('nonexistent');
-} catch (err) {
-  if (err instanceof ArgaAPIError) {
-    console.error(err.statusCode); // e.g. 404
-    console.error(err.message);    // error detail from API
-    console.error(err.body);       // parsed response body, when available
-  } else if (err instanceof ArgaError) {
-    console.error(err.message);    // e.g. wait() timeout
-  }
-}
-```
+The opt-in `scripts/e2e.mjs` harness exercises official Gmail/Stripe clients against isolated twins, live Braintrust sync, production Training generation and eight verifier scenarios through the API and portable artifact. It uses synthetic fixtures only and saves private local state. See `scripts/README.md` for execution and cleanup.
 
 ## Documentation
 
-Full API documentation is available at [docs.argalabs.com](https://docs.argalabs.com).
-
-## License
-
-MIT
+- [Current APIs](https://docs.argalabs.com/sdks/typescript)
+- [Tracing and filtering](https://docs.argalabs.com/sdks/typescript/tracing)
+- [Braintrust sync](https://docs.argalabs.com/sdks/typescript/braintrust)
+- [Tasks and verifiers](https://docs.argalabs.com/sdks/typescript/training)
