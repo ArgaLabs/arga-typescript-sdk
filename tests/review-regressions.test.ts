@@ -200,11 +200,6 @@ it("continues traced agent work after the collector has closed", async () => {
   expect(work).toHaveBeenCalledOnce();
 });
 it("reads bounded nested MIME while retaining other fields after invalid UTF-8", () => {
-  const t = new Tracing({
-    source: "test",
-    upload: false,
-    policy: new CapturePolicy({ textFields: ["gmail.body"] }),
-  });
   const raw = {
     id: "message",
     threadId: "thread",

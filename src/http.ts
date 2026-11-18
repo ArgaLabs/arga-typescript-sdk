@@ -90,6 +90,34 @@ export interface HttpClientOptions {
   timeout?: number;
 }
 
+interface RequestContext {
+  timeout: number;
+  signal?: AbortSignal;
+}
+const responseContexts = new WeakMap<Response, RequestContext>();
+function requestError(error: unknown, context?: RequestContext): unknown {
+  if (
+    error instanceof Error &&
+    (error.name === "TimeoutError" ||
+      (error.name === "AbortError" &&
+        context?.signal?.reason?.name === "TimeoutError"))
+  )
+    return new ArgaError(
+      `Arga request timed out${context ? ` after ${context.timeout}ms` : ""}`,
+    );
+  return error;
+}
+async function readBody<T>(
+  response: Response,
+  read: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await read();
+  } catch (error) {
+    throw requestError(error, responseContexts.get(response));
+  }
+}
+
 export class HttpClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -114,12 +142,13 @@ export class HttpClient {
     url: string,
     init: RequestInit,
   ): Promise<Response> {
+    const context = { timeout: this.timeout, signal: init.signal ?? undefined };
     try {
-      return await this._fetch(url, init);
+      const response = await this._fetch(url, init);
+      responseContexts.set(response, context);
+      return response;
     } catch (error) {
-      if (error instanceof Error && error.name === "TimeoutError")
-        throw new ArgaError(`Arga request timed out after ${this.timeout}ms`);
-      throw error;
+      throw requestError(error, context);
     }
   }
 
@@ -200,7 +229,7 @@ export class HttpClient {
       redirect: "error",
     });
     if (!res.ok) await this.throwApiError(res);
-    return res.text();
+    return readBody(res, () => res.text());
   }
   async getRedirect(path: string): Promise<string> {
     const res = await this.performFetch(this.buildUrl(path), {
@@ -261,16 +290,17 @@ export class HttpClient {
       await this.throwApiError(res);
     }
     if (res.status === 204) return undefined as T;
-    const json = await res.json();
+    const json = await readBody(res, () => res.json());
     return toCamelCaseKeys(json) as T;
   }
 
   private async throwApiError(res: Response): Promise<never> {
-    let body: unknown;
+    const text = await readBody(res, () => res.text());
+    let body: unknown = text;
     try {
-      body = await res.json();
+      body = JSON.parse(text);
     } catch {
-      body = await res.text().catch(() => null);
+      // Keep a non-JSON error body without trying to consume the stream twice.
     }
 
     const detail =
@@ -346,6 +376,8 @@ export async function* parseSSE(response: Response): AsyncIterable<SSEEvent> {
         data: currentData.join("\n"),
       };
     }
+  } catch (error) {
+    throw requestError(error, responseContexts.get(response));
   } finally {
     reader.releaseLock();
   }

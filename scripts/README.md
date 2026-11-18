@@ -52,5 +52,5 @@ owner: revoke dedicated Braintrust API keys in Braintrust settings using that
 service's supported account controls. Do not assume CLI logout revokes OAuth
 access. Arga v1 upload keys expire after 30 days and have no individual revocation
 endpoint; rotating/revoking their parent account credential/session invalidates
-them but can also affect other integrations. The harness therefore removes only
-its temporary local Braintrust profile, never rotates an existing account key.
+them but can also affect other integrations. Remove the temporary local Braintrust profile manually after the test; the
+harness does not remove it or rotate an existing account key.
