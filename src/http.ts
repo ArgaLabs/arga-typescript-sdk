@@ -107,15 +107,30 @@ function requestError(error: unknown, context?: RequestContext): unknown {
     );
   return error;
 }
-async function readBody<T>(
-  response: Response,
+async function withinDeadline<T>(
+  context: RequestContext | undefined,
   read: () => Promise<T>,
 ): Promise<T> {
+  const signal = context?.signal;
+  let abort: (() => void) | undefined;
   try {
-    return await read();
+    if (!signal) return await read();
+    const deadline = new Promise<never>((_resolve, reject) => {
+      abort = () => reject(signal.reason);
+      signal.addEventListener("abort", abort, { once: true });
+    });
+    if (signal.aborted) throw signal.reason;
+    // Retain the signal and observe its deadline through the complete read,
+    // even when the transport does not reject a stalled body on abort.
+    return await Promise.race([read(), deadline]);
   } catch (error) {
-    throw requestError(error, responseContexts.get(response));
+    throw requestError(error, context);
+  } finally {
+    if (signal && abort) signal.removeEventListener("abort", abort);
   }
+}
+function readBody<T>(response: Response, read: () => Promise<T>): Promise<T> {
+  return withinDeadline(responseContexts.get(response), read);
 }
 
 export class HttpClient {
@@ -143,13 +158,11 @@ export class HttpClient {
     init: RequestInit,
   ): Promise<Response> {
     const context = { timeout: this.timeout, signal: init.signal ?? undefined };
-    try {
-      const response = await this._fetch(url, init);
-      responseContexts.set(response, context);
-      return response;
-    } catch (error) {
-      throw requestError(error, context);
-    }
+    const response = await withinDeadline(context, () =>
+      this._fetch(url, init),
+    );
+    responseContexts.set(response, context);
+    return response;
   }
 
   // ---- public helpers -----------------------------------------------------
@@ -341,7 +354,7 @@ export async function* parseSSE(response: Response): AsyncIterable<SSEEvent> {
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await readBody(response, () => reader.read());
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
@@ -377,6 +390,8 @@ export async function* parseSSE(response: Response): AsyncIterable<SSEEvent> {
       };
     }
   } catch (error) {
+    // A raced deadline can leave a read pending; cancel it before releasing.
+    void reader.cancel().catch(() => {});
     throw requestError(error, responseContexts.get(response));
   } finally {
     reader.releaseLock();
