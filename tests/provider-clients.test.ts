@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createServer, type Server } from "node:http";
 import { gmail } from "@googleapis/gmail";
 import Stripe from "stripe";
+import { SUPPORTED_OPERATIONS } from "../src/tracing/models.js";
 import { Tracing, CapturePolicy } from "../src/tracing/index.js";
 
 const servers: Server[] = [];
@@ -126,4 +127,32 @@ describe("official provider clients", () => {
     );
     expect(tracing.lastEpisode?.issues).toEqual([]);
   });
+});
+
+it("keeps supported Stripe operations aligned with the official client", () => {
+  const stripe = new Stripe("sk_test_fake");
+  for (const operation of SUPPORTED_OPERATIONS) {
+    const [provider, resource, verb] = operation.split(".");
+    if (provider !== "stripe") continue;
+    const namespace =
+      resource === "payment_intents" ? "paymentIntents" : resource;
+    expect(
+      typeof (stripe as any)[namespace][verb === "delete" ? "del" : verb],
+    ).toBe("function");
+  }
+});
+
+it("keeps canonical Gmail operations aligned with native client methods", () => {
+  const client = gmail({ version: "v1" });
+  for (const operation of SUPPORTED_OPERATIONS) {
+    const [provider, resource, verb] = operation.split(".");
+    if (provider !== "gmail") continue;
+    const method =
+      resource === "profile"
+        ? (client.users as any).getProfile
+        : (client.users as any)[resource][
+            verb === "create" && resource === "messages" ? "insert" : verb
+          ];
+    expect(typeof method).toBe("function");
+  }
 });

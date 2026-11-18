@@ -2,6 +2,7 @@ import { replaceEmails, extractEmails } from "./strings.js";
 import { createHash, createHmac } from "node:crypto";
 import {
   MAX_EVIDENCE_BYTES,
+  scopeFor,
   validateRecord,
   validateEpisode,
   type Episode,
@@ -337,25 +338,43 @@ export class Projector {
     }
     if (this.options.policy.textFields.includes("gmail.body")) {
       const parts: unknown[] = [],
-        pending: unknown[] = [payload],
+        frames: { nodes: unknown[]; index: number }[] = [
+          { nodes: [payload], index: 0 },
+        ],
         texts: string[] = [];
-      while (pending.length && parts.length < 20) {
-        const part = pending.shift();
-        parts.push(part);
-        if (value(part, "filename")) continue;
-        const mime = value(part, "mimeType"),
-          children = value(part, "parts");
+      let inspected = 0,
+        bodyNodes = 0;
+      while (frames.length && inspected < 200) {
+        const frame = frames[frames.length - 1];
+        if (frame.index >= frame.nodes.length) {
+          frames.pop();
+          continue;
+        }
+        const part = frame.nodes[frame.index++];
+        inspected++;
         if (
-          typeof mime === "string" &&
-          mime.startsWith("multipart/") &&
-          Array.isArray(children)
-        ) {
-          if (children.length + pending.length + parts.length > 20)
-            this.issue("payload_limit");
-          pending.push(...children.slice(0, Math.max(0, 20 - pending.length)));
+          value(part, "filename") ||
+          value(value(part, "body"), "attachmentId")
+        )
+          continue;
+        const mime = value(part, "mimeType");
+        if (
+          typeof mime !== "string" ||
+          (mime !== "text/plain" && !mime.startsWith("multipart/"))
+        )
+          continue;
+        if (++bodyNodes > 20) {
+          this.issue("payload_limit");
+          break;
+        }
+        if (mime === "text/plain") parts.push(part);
+        else {
+          const children = value(part, "parts");
+          if (Array.isArray(children))
+            frames.push({ nodes: children, index: 0 });
         }
       }
-      if (pending.length) this.issue("payload_limit");
+      if (inspected >= 200 && frames.length) this.issue("payload_limit");
       for (const part of parts) {
         if (
           value(part, "mimeType") !== "text/plain" ||
@@ -407,11 +426,7 @@ export class Projector {
     try {
       const [provider, resource, verb] = operation,
         read = READS.has(verb);
-      const scope = ["list", "search"].includes(verb)
-        ? "result_page"
-        : read
-          ? "resource"
-          : "mutation";
+      const scope = scopeFor(verb);
       let items: unknown[] = [],
         complete: boolean | undefined;
       if (response !== undefined && response !== null) {

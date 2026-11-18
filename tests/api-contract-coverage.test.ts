@@ -192,6 +192,14 @@ it("wraps request timeouts while preserving unrelated network errors", async () 
   await expect(client.training.get("dataset")).rejects.toThrow(
     "Arga request timed out after 20ms",
   );
+  const network = new Error("network failure");
+  const original = new Arga({
+    apiKey: "test",
+    fetch: async () => {
+      throw network;
+    },
+  });
+  await expect(original.training.get("dataset")).rejects.toBe(network);
 });
 
 it("rejects an explicitly empty repository filter", async () => {
@@ -216,7 +224,7 @@ it("rejects inconsistent operation scopes through the promise contract", async (
           sequence: 1,
           provider: "stripe",
           resource: "customers",
-          verb: "send",
+          verb: "list",
           scope: "mutation",
           parameters: {},
           records: [],

@@ -235,6 +235,8 @@ it("reads bounded nested MIME while retaining other fields after invalid UTF-8",
   });
   p.record(["gmail", "messages", "get"], {}, raw);
   expect(p.episode.events[0].records[0].body).toBe("Nested body");
+  expect(p.episode.events[0].records[0].id).toMatch(/^msg_/);
+  expect(p.episode.events[0].records[0].thread_id).toMatch(/^thread_/);
   expect(p.episode.issues).toContain("projection_failed");
 });
 
@@ -261,4 +263,61 @@ it("omits whitespace-only email rather than creating an invalid alias", () => {
   expect(
     p.stripeRecord("customers", { id: "cus_test", email: "   " }),
   ).not.toHaveProperty("email");
+});
+
+it("retains MIME order and ignores skipped attachments within the metadata bound", () => {
+  const part = (text: string) => ({
+    mimeType: "text/plain",
+    body: { data: Buffer.from(text).toString("base64url") },
+  });
+  const p = new Projector({
+    source: "test",
+    episodeKey: "one",
+    aliasKey: Buffer.alloc(32),
+    policy: new CapturePolicy({ textFields: ["gmail.body"] }),
+  });
+  p.record(
+    ["gmail", "messages", "get"],
+    {},
+    {
+      id: "message",
+      payload: {
+        mimeType: "multipart/mixed",
+        parts: [
+          { mimeType: "multipart/alternative", parts: [part("A")] },
+          part("B"),
+          ...Array.from({ length: 50 }, () => ({
+            ...part("SECRET_ATTACHMENT"),
+            filename: "attachment.txt",
+          })),
+        ],
+      },
+    },
+  );
+  expect(p.episode.events[0].records[0].body).toBe("A\nB");
+  expect(p.episode.issues).toEqual([]);
+  expect(JSON.stringify(p.episode)).not.toContain("SECRET_ATTACHMENT");
+});
+it("maps native Gmail insert to the create evidence operation without exporting raw MIME", async () => {
+  const tracing = new Tracing({ source: "test", upload: false }),
+    raw = "PRIVATE_MIME_CANARY",
+    gmail = tracing.wrapGmail({
+      users: {
+        messages: {
+          insert: async (_params: unknown) => ({
+            data: { id: "inserted-message" },
+          }),
+        },
+      },
+    });
+  await tracing.episode({}, () =>
+    gmail.users.messages.insert({ userId: "me", requestBody: { raw } }),
+  );
+  expect(tracing.lastEpisode?.events[0]).toMatchObject({
+    provider: "gmail",
+    resource: "messages",
+    verb: "create",
+    scope: "mutation",
+  });
+  expect(JSON.stringify(tracing.lastEpisode)).not.toContain(raw);
 });

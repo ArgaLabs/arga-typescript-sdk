@@ -10,6 +10,21 @@ const LOCAL = new Set(
 const DOMAIN = new Set(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.-",
 );
+const DOTS = new Set([".", "\u3002", "\uff0e", "\uff61"]);
+const UNICODE_WORD = /^[\p{L}\p{M}\p{N}]$/u;
+function previous(text: string, index: number): number {
+  const last = text.charCodeAt(index - 1);
+  return last >= 0xdc00 &&
+    last <= 0xdfff &&
+    index > 1 &&
+    text.charCodeAt(index - 2) >= 0xd800 &&
+    text.charCodeAt(index - 2) <= 0xdbff
+    ? index - 2
+    : index - 1;
+}
+function next(text: string, index: number): number {
+  return index + (text.codePointAt(index)! > 0xffff ? 2 : 1);
+}
 export function replaceEmails(
   text: string,
   replace: (email: string) => string,
@@ -22,25 +37,32 @@ export function replaceEmails(
     if (at < 0) break;
     let start = at,
       end = at + 1;
-    const local = (char: string) =>
-      LOCAL.has(char) || (char.charCodeAt(0) >= 128 && !/\s/u.test(char));
-    const domainChar = (char: string) =>
-      DOMAIN.has(char) ||
-      char === "@" ||
-      (char.charCodeAt(0) >= 128 && !/\s/u.test(char));
-    while (start > copied && local(text[start - 1])) start--;
-    // An ambiguous token with multiple @ signs is masked as a whole rather than
-    // leaving a suffix of an adjacent address in selected text.
-    while (end < text.length && domainChar(text[end])) end++;
-    // Trim sentence punctuation; require a plausible domain suffix.
-    while (end > at + 1 && text[end - 1] === ".") end--;
-    const domain = text.slice(text.lastIndexOf("@", end - 1) + 1, end),
+    while (start > copied) {
+      const before = previous(text, start),
+        char = text.slice(before, start);
+      if (!LOCAL.has(char) && !UNICODE_WORD.test(char)) break;
+      start = before;
+    }
+    // Conservatively mask a whole ambiguous multi-@ token, without swallowing
+    // surrounding Unicode punctuation, quotes or prose.
+    while (end < text.length) {
+      const after = next(text, end),
+        char = text.slice(end, after);
+      if (
+        !DOMAIN.has(char) &&
+        !DOTS.has(char) &&
+        char !== "@" &&
+        !UNICODE_WORD.test(char)
+      )
+        break;
+      end = after;
+    }
+    while (end > at + 1 && DOTS.has(text[end - 1])) end--;
+    const domain = text
+        .slice(text.lastIndexOf("@", end - 1) + 1, end)
+        .replace(/[\u3002\uff0e\uff61]/g, "."),
       dot = domain.lastIndexOf(".");
-    if (
-      start < at &&
-      dot > 0 &&
-      /^(?:[\p{L}\p{M}]{2}|[^\x00-\x7F])/u.test(domain.slice(dot + 1))
-    ) {
+    if (start < at && dot > 0 && /^[\p{L}\p{M}]/u.test(domain.slice(dot + 1))) {
       chunks.push(text.slice(copied, start), replace(text.slice(start, end)));
       copied = end;
     }

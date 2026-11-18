@@ -53,6 +53,7 @@ export class TwinRunsResource {
         "timed_out",
       ]),
       options,
+      `twin run ${id}`,
     );
   }
 }

@@ -34,27 +34,39 @@ export type Issue =
 export type Provider = "gmail" | "stripe";
 export type Operation = readonly [Provider, Resource, Verb];
 export const SUPPORTED_OPERATIONS = new Set([
-  ...["customers", "payment_intents", "charges", "refunds"].flatMap(
-    (resource) =>
-      ["retrieve", "list", "search", "create", "update", "delete"].map(
-        (verb) => `stripe.${resource}.${verb}`,
-      ),
+  ...["retrieve", "list", "search", "create", "update", "delete"].map(
+    (verb) => `stripe.customers.${verb}`,
   ),
-  ...["messages", "drafts"].flatMap((resource) =>
-    [
-      "get",
-      "list",
-      "create",
-      "update",
-      "delete",
-      "send",
-      "modify",
-      "trash",
-      "untrash",
-    ].map((verb) => `gmail.${resource}.${verb}`),
+  ...["payment_intents", "charges"].flatMap((resource) =>
+    ["retrieve", "list", "search", "create", "update"].map(
+      (verb) => `stripe.${resource}.${verb}`,
+    ),
+  ),
+  ...["retrieve", "list", "create", "update"].map(
+    (verb) => `stripe.refunds.${verb}`,
+  ),
+  ...[
+    "get",
+    "list",
+    "create",
+    "send",
+    "modify",
+    "trash",
+    "untrash",
+    "delete",
+  ].map((verb) => `gmail.messages.${verb}`),
+  ...["get", "list", "create", "update", "send", "delete"].map(
+    (verb) => `gmail.drafts.${verb}`,
   ),
   "gmail.profile.get",
 ]);
+export function scopeFor(verb: Verb): EvidenceEvent["scope"] {
+  return ["list", "search"].includes(verb)
+    ? "result_page"
+    : ["get", "retrieve"].includes(verb)
+      ? "resource"
+      : "mutation";
+}
 export interface EvidenceParameters {
   id?: string;
   customer?: string;
@@ -169,11 +181,7 @@ export function validateEpisode(episode: unknown): Episode {
   if (value.events.some((event, i) => event.sequence !== i + 1))
     throw new Error("Events must have contiguous sequence numbers");
   for (const event of value.events) {
-    const scope = ["list", "search"].includes(event.verb)
-      ? "result_page"
-      : ["get", "retrieve"].includes(event.verb)
-        ? "resource"
-        : "mutation";
+    const scope = scopeFor(event.verb);
     if (
       !SUPPORTED_OPERATIONS.has(
         `${event.provider}.${event.resource}.${event.verb}`,

@@ -4,6 +4,8 @@ import { value } from "./projection.js";
 
 import { SUPPORTED_OPERATIONS } from "./models.js";
 export function operationFor(path: string): Operation | undefined {
+  if (path === "gmail.messages.insert" || path === "gmail.messages.import")
+    path = "gmail.messages.create";
   return SUPPORTED_OPERATIONS.has(path)
     ? (path.split(".") as unknown as Operation)
     : undefined;

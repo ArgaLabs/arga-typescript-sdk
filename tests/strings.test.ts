@@ -33,3 +33,10 @@ it("masks internationalized and ambiguous adjacent addresses completely", () => 
     expect(replaceEmails(address, () => "[person]")).toBe("[person]");
   }
 });
+
+it("preserves Unicode punctuation surrounding internationalized addresses", () => {
+  expect(replaceEmails("“客户@例子.公司”—approved", () => "[person]")).toBe(
+    "“[person]”—approved",
+  );
+  expect(replaceEmails("𝕒𝕓@例子.网", () => "[person]")).toBe("[person]");
+});

@@ -47,6 +47,7 @@ export class TestRunsResource {
         "timed_out",
       ]),
       options,
+      `test run ${id}`,
     );
   }
 }
