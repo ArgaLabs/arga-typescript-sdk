@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 import { HttpClient, parseSSE } from "../src/http.js";
 import { ArgaError } from "../src/errors.js";
@@ -47,8 +47,45 @@ it.each(["json", "text", "error", "sse"])(
       expect(error).toBeInstanceOf(ArgaError);
       expect(error.message).toBe("Arga request timed out after 100ms");
     } finally {
-      server.closeAllConnections();
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+        server.closeAllConnections();
+      });
+    }
+  },
+);
+
+it("enforces the deadline when a custom fetch ignores its signal", async () => {
+  const client = new HttpClient({
+    baseUrl: "https://example.invalid",
+    apiKey: "test",
+    timeout: 20,
+    fetch: () => new Promise(() => {}),
+  });
+  await expect(client.get("/body")).rejects.toThrow(
+    "Arga request timed out after 20ms",
+  );
+});
+it.each(["json", "sse"])(
+  "enforces a stalled %s body deadline without transport abort support",
+  async (mode) => {
+    const cancel = vi.fn();
+    const response = new Response(new ReadableStream({ cancel }));
+    const client = new HttpClient({
+      baseUrl: "https://example.invalid",
+      apiKey: "test",
+      timeout: 20,
+      fetch: async () => response,
+    });
+    const read = async () => {
+      if (mode === "json") return client.get("/body");
+      for await (const _event of parseSSE(await client.getRaw("/body"))) {
+      }
+    };
+    await expect(read()).rejects.toThrow("Arga request timed out after 20ms");
+    if (mode === "sse") {
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(response.body?.locked).toBe(false);
     }
   },
 );
