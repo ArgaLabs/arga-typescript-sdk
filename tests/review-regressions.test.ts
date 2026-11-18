@@ -238,15 +238,18 @@ it("reads bounded nested MIME while retaining other fields after invalid UTF-8",
   expect(p.episode.issues).toContain("projection_failed");
 });
 
-it("does not mask ordinary risk wording as a secret key", () => {
-  const t = new Tracing({
-    source: "test",
-    upload: false,
-    policy: new CapturePolicy({ textFields: ["goal"] }),
-  });
-  t.episode({ goal: "Follow the risk-assessment-framework" }, () => {});
-  expect(t.lastEpisode?.goal).toBe("Follow the risk-assessment-framework");
-});
+it.each(["Follow the risk-assessment-framework", "Instrument arga_sdk"])(
+  "does not mask ordinary wording as a secret key: %s",
+  (goal) => {
+    const t = new Tracing({
+      source: "test",
+      upload: false,
+      policy: new CapturePolicy({ textFields: ["goal"] }),
+    });
+    t.episode({ goal }, () => {});
+    expect(t.lastEpisode?.goal).toBe(goal);
+  },
+);
 it("omits whitespace-only email rather than creating an invalid alias", () => {
   const p = new Projector({
     source: "test",
